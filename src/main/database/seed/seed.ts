@@ -15,9 +15,9 @@ async function main() {
       id: 'default_config',
       hospitalName: 'City Hospital',
       tagline: 'Center for Medical Excellence & Compassionate Care',
-      address: '123 Healthcare Boulevard, Medical District',
-      city: 'Metropolis',
-      phone: '+1 (555) 019-2834 / +1 (555) 019-2835',
+      address: 'Tehsil Wala Gala, Near Hamid Super Store, Nowshera Virkan',
+      city: 'Gujranwala',
+      phone: '+92 320 8474744',
       email: 'contact@cityhospital.org',
       website: 'www.cityhospital.org',
       taxNumber: 'TX-984210-CH',
@@ -89,70 +89,70 @@ async function main() {
     deptMap[dept.code] = created.id;
   }
 
-  // 4. Doctors
-  const doctorsData = [
-    {
-      name: 'Dr. Sarah Jenkins',
-      printableTitle: 'Dr. Sarah Jenkins, MBBS, FCPS, FACC (Cardiologist)',
-      licenseNumber: 'PMC-CARD-49201',
-      specialty: 'Cardiology',
-      departmentId: deptMap['CARDIO'],
-      consultationFee: 2500,
-      followUpFee: 1500,
-      phone: '+1 (555) 431-9011',
-      email: 'sarah.jenkins@cityhospital.org',
-    },
-    {
-      name: 'Dr. Ahmed Khan',
-      printableTitle: 'Dr. Ahmed Khan, MBBS, MD (Internal Medicine)',
-      licenseNumber: 'PMC-MED-18293',
-      specialty: 'General Medicine',
-      departmentId: deptMap['GEN_MED'],
-      consultationFee: 2000,
-      followUpFee: 1200,
-      phone: '+1 (555) 431-9012',
-      email: 'ahmed.khan@cityhospital.org',
-    },
-    {
-      name: 'Dr. Emily Davis',
-      printableTitle: 'Dr. Emily Davis, MBBS, DCH, MCPS (Pediatrics)',
-      licenseNumber: 'PMC-PED-38290',
-      specialty: 'Pediatrics',
-      departmentId: deptMap['PED'],
-      consultationFee: 2200,
-      followUpFee: 1400,
-      phone: '+1 (555) 431-9013',
-      email: 'emily.davis@cityhospital.org',
-    },
-    {
-      name: 'Dr. Robert Chen',
-      printableTitle: 'Dr. Robert Chen, MBBS, MS Ortho, FRCS',
-      licenseNumber: 'PMC-ORTH-71029',
-      specialty: 'Orthopedics',
-      departmentId: deptMap['ORTHO'],
-      consultationFee: 2800,
-      followUpFee: 1800,
-      phone: '+1 (555) 431-9014',
-      email: 'robert.chen@cityhospital.org',
-    },
-  ];
+  // // 4. Doctors
+  // const doctorsData = [
+  //   {
+  //     name: 'Dr. Sarah Jenkins',
+  //     printableTitle: 'Dr. Sarah Jenkins, MBBS, FCPS, FACC (Cardiologist)',
+  //     licenseNumber: 'PMC-CARD-49201',
+  //     specialty: 'Cardiology',
+  //     departmentId: deptMap['CARDIO'],
+  //     consultationFee: 2500,
+  //     followUpFee: 1500,
+  //     phone: '+1 (555) 431-9011',
+  //     email: 'sarah.jenkins@cityhospital.org',
+  //   },
+  //   {
+  //     name: 'Dr. Ahmed Khan',
+  //     printableTitle: 'Dr. Ahmed Khan, MBBS, MD (Internal Medicine)',
+  //     licenseNumber: 'PMC-MED-18293',
+  //     specialty: 'General Medicine',
+  //     departmentId: deptMap['GEN_MED'],
+  //     consultationFee: 2000,
+  //     followUpFee: 1200,
+  //     phone: '+1 (555) 431-9012',
+  //     email: 'ahmed.khan@cityhospital.org',
+  //   },
+  //   {
+  //     name: 'Dr. Emily Davis',
+  //     printableTitle: 'Dr. Emily Davis, MBBS, DCH, MCPS (Pediatrics)',
+  //     licenseNumber: 'PMC-PED-38290',
+  //     specialty: 'Pediatrics',
+  //     departmentId: deptMap['PED'],
+  //     consultationFee: 2200,
+  //     followUpFee: 1400,
+  //     phone: '+1 (555) 431-9013',
+  //     email: 'emily.davis@cityhospital.org',
+  //   },
+  //   {
+  //     name: 'Dr. Robert Chen',
+  //     printableTitle: 'Dr. Robert Chen, MBBS, MS Ortho, FRCS',
+  //     licenseNumber: 'PMC-ORTH-71029',
+  //     specialty: 'Orthopedics',
+  //     departmentId: deptMap['ORTHO'],
+  //     consultationFee: 2800,
+  //     followUpFee: 1800,
+  //     phone: '+1 (555) 431-9014',
+  //     email: 'robert.chen@cityhospital.org',
+  //   },
+  // ];
 
-  const docMap: Record<string, string> = {};
-  for (const doc of doctorsData) {
-    const created = await prisma.doctor.upsert({
-      where: { licenseNumber: doc.licenseNumber },
-      update: {
-        name: doc.name,
-        printableTitle: doc.printableTitle,
-        consultationFee: doc.consultationFee,
-        followUpFee: doc.followUpFee,
-        specialty: doc.specialty,
-        departmentId: doc.departmentId,
-      },
-      create: doc,
-    });
-    docMap[doc.name] = created.id;
-  }
+  // const docMap: Record<string, string> = {};
+  // for (const doc of doctorsData) {
+  //   const created = await prisma.doctor.upsert({
+  //     where: { licenseNumber: doc.licenseNumber },
+  //     update: {
+  //       name: doc.name,
+  //       printableTitle: doc.printableTitle,
+  //       consultationFee: doc.consultationFee,
+  //       followUpFee: doc.followUpFee,
+  //       specialty: doc.specialty,
+  //       departmentId: doc.departmentId,
+  //     },
+  //     create: doc,
+  //   });
+  //   docMap[doc.name] = created.id;
+  // }
 
   // 5. Users & Credential Accounts (Admin & Receptionist)
   const usersData = [
@@ -208,72 +208,72 @@ async function main() {
     }
   }
 
-  // 6. Panel Clients
-  const panelData = [
-    {
-      code: 'NAT_HEALTH',
-      name: 'National Health Services Corporation',
-      contactPerson: 'Marcus Wright',
-      phone: '+1 (555) 201-8844',
-      email: 'billing@nathealthcorp.com',
-      address: '742 Executive Way, Suite 400',
-      discountPercent: 15.0,
-      billingType: 'CREDIT',
-    },
-    {
-      code: 'APEX_CARE',
-      name: 'Apex Corporate Wellness Trust',
-      contactPerson: 'Elena Rostova',
-      phone: '+1 (555) 309-1122',
-      email: 'claims@apexcorp.org',
-      address: '100 Financial Center, 12th Floor',
-      discountPercent: 20.0,
-      billingType: 'CREDIT',
-    },
-    {
-      code: 'POLICE_WELFARE',
-      name: 'Metropolis Police Welfare Board',
-      contactPerson: 'Captain John Brody',
-      phone: '+1 (555) 911-0044',
-      email: 'welfare@metropolice.gov',
-      address: '500 Central Police Plaza',
-      discountPercent: 25.0,
-      billingType: 'CREDIT',
-    },
-  ];
+  // // 6. Panel Clients
+  // const panelData = [
+  //   {
+  //     code: 'NAT_HEALTH',
+  //     name: 'National Health Services Corporation',
+  //     contactPerson: 'Marcus Wright',
+  //     phone: '+1 (555) 201-8844',
+  //     email: 'billing@nathealthcorp.com',
+  //     address: '742 Executive Way, Suite 400',
+  //     discountPercent: 15.0,
+  //     billingType: 'CREDIT',
+  //   },
+  //   {
+  //     code: 'APEX_CARE',
+  //     name: 'Apex Corporate Wellness Trust',
+  //     contactPerson: 'Elena Rostova',
+  //     phone: '+1 (555) 309-1122',
+  //     email: 'claims@apexcorp.org',
+  //     address: '100 Financial Center, 12th Floor',
+  //     discountPercent: 20.0,
+  //     billingType: 'CREDIT',
+  //   },
+  //   {
+  //     code: 'POLICE_WELFARE',
+  //     name: 'Metropolis Police Welfare Board',
+  //     contactPerson: 'Captain John Brody',
+  //     phone: '+1 (555) 911-0044',
+  //     email: 'welfare@metropolice.gov',
+  //     address: '500 Central Police Plaza',
+  //     discountPercent: 25.0,
+  //     billingType: 'CREDIT',
+  //   },
+  // ];
 
-  for (const p of panelData) {
-    await prisma.panelClient.upsert({
-      where: { code: p.code },
-      update: p,
-      create: p,
-    });
-  }
+  // for (const p of panelData) {
+  //   await prisma.panelClient.upsert({
+  //     where: { code: p.code },
+  //     update: p,
+  //     create: p,
+  //   });
+  // }
 
-  // 7. Medicine Master
-  const medicines = [
-    { brandName: 'Augmentin', genericName: 'Amoxicillin + Clavulanic Acid', strength: '625mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '5 Days' },
-    { brandName: 'Panadol', genericName: 'Paracetamol', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1-2 Tabs', defaultFrequency: 'TDS (PRN)', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-    { brandName: 'Brufen', genericName: 'Ibuprofen', strength: '400mg', dosageForm: 'Tablet', manufacturer: 'Abbott', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-    { brandName: 'Risek', genericName: 'Omeprazole', strength: '40mg', dosageForm: 'Capsule', manufacturer: 'Getz Pharma', defaultDosage: '1 Cap', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '14 Days' },
-    { brandName: 'Lipitor', genericName: 'Atorvastatin', strength: '20mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Night)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-    { brandName: 'Glucophage', genericName: 'Metformin HCl', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-    { brandName: 'Concor', genericName: 'Bisoprolol Fumarate', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-    { brandName: 'Norvasc', genericName: 'Amlodipine', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-    { brandName: 'Zithromax', genericName: 'Azithromycin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-    { brandName: 'Ciprobay', genericName: 'Ciprofloxacin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Bayer', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '5 Days' },
-    { brandName: 'Ventolin Inhaler', genericName: 'Salbutamol', strength: '100mcg/puff', dosageForm: 'Inhaler', manufacturer: 'GSK', defaultDosage: '2 Puffs', defaultFrequency: 'PRN / QID', defaultRoute: 'Inhalation', defaultDuration: 'As needed' },
-    { brandName: 'Clexane', genericName: 'Enoxaparin Sodium', strength: '40mg/0.4ml', dosageForm: 'Injection', manufacturer: 'Sanofi', defaultDosage: '1 Syringe', defaultFrequency: 'OD', defaultRoute: 'Subcutaneous', defaultDuration: '5 Days' },
-  ];
+  // // 7. Medicine Master
+  // const medicines = [
+  //   { brandName: 'Augmentin', genericName: 'Amoxicillin + Clavulanic Acid', strength: '625mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '5 Days' },
+  //   { brandName: 'Panadol', genericName: 'Paracetamol', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1-2 Tabs', defaultFrequency: 'TDS (PRN)', defaultRoute: 'Oral', defaultDuration: '3 Days' },
+  //   { brandName: 'Brufen', genericName: 'Ibuprofen', strength: '400mg', dosageForm: 'Tablet', manufacturer: 'Abbott', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
+  //   { brandName: 'Risek', genericName: 'Omeprazole', strength: '40mg', dosageForm: 'Capsule', manufacturer: 'Getz Pharma', defaultDosage: '1 Cap', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '14 Days' },
+  //   { brandName: 'Lipitor', genericName: 'Atorvastatin', strength: '20mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Night)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+  //   { brandName: 'Glucophage', genericName: 'Metformin HCl', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+  //   { brandName: 'Concor', genericName: 'Bisoprolol Fumarate', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+  //   { brandName: 'Norvasc', genericName: 'Amlodipine', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+  //   { brandName: 'Zithromax', genericName: 'Azithromycin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
+  //   { brandName: 'Ciprobay', genericName: 'Ciprofloxacin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Bayer', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '5 Days' },
+  //   { brandName: 'Ventolin Inhaler', genericName: 'Salbutamol', strength: '100mcg/puff', dosageForm: 'Inhaler', manufacturer: 'GSK', defaultDosage: '2 Puffs', defaultFrequency: 'PRN / QID', defaultRoute: 'Inhalation', defaultDuration: 'As needed' },
+  //   { brandName: 'Clexane', genericName: 'Enoxaparin Sodium', strength: '40mg/0.4ml', dosageForm: 'Injection', manufacturer: 'Sanofi', defaultDosage: '1 Syringe', defaultFrequency: 'OD', defaultRoute: 'Subcutaneous', defaultDuration: '5 Days' },
+  // ];
 
-  for (const m of medicines) {
-    const existing = await prisma.medicine.findFirst({
-      where: { brandName: m.brandName, strength: m.strength },
-    });
-    if (!existing) {
-      await prisma.medicine.create({ data: m });
-    }
-  }
+  // for (const m of medicines) {
+  //   const existing = await prisma.medicine.findFirst({
+  //     where: { brandName: m.brandName, strength: m.strength },
+  //   });
+  //   if (!existing) {
+  //     await prisma.medicine.create({ data: m });
+  //   }
+  // }
 
   // 8. Doctor-Requested Investigations Master
   const investigations = [
