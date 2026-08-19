@@ -1,0 +1,748 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/main/database/client"
+}
+
+// ----------------------------------------------------
+// 1. AUTHENTICATION & RBAC
+// ----------------------------------------------------
+
+enum RoleType {
+  ADMINISTRATOR
+  RECEPTION
+  NURSE
+  DOCTOR
+  CASHIER
+  HOSPITAL_MANAGER
+}
+
+model User {
+  id           String      @id @default(uuid())
+  username     String      @unique
+  passwordHash String
+  fullName     String
+  email        String?     @unique
+  phone        String?
+  isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  doctorId     String?     @unique
+  doctor       Doctor?     @relation(fields: [doctorId], references: [id])
+
+  roles        UserRole[]
+  auditLogs    AuditLog[]
+
+  @@map("users")
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        RoleType         @unique
+  description String?
+  permissions RolePermission[]
+  users       UserRole[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  code        String           @unique
+  name        String
+  category    String
+  description String?
+  roles       RolePermission[]
+
+  @@map("permissions")
+}
+
+model UserRole {
+  userId String
+  roleId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([userId, roleId])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+  @@map("role_permissions")
+}
+
+// ----------------------------------------------------
+// 2. PATIENT & PANEL CLIENTS
+// ----------------------------------------------------
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum BloodGroup {
+  A_POSITIVE
+  A_NEGATIVE
+  B_POSITIVE
+  B_NEGATIVE
+  AB_POSITIVE
+  AB_NEGATIVE
+  O_POSITIVE
+  O_NEGATIVE
+  UNKNOWN
+}
+
+model PanelClient {
+  id                 String    @id @default(uuid())
+  name               String
+  code               String    @unique
+  contactPerson      String?
+  phone              String?
+  email              String?
+  address            String?
+  discountPercent    Decimal   @default(0.00) @db.Decimal(5, 2)
+  billingType        String    @default("CREDIT") // "CREDIT", "CO_PAY", "DIRECT"
+  effectiveStartDate  DateTime?
+  effectiveEndDate    DateTime?
+  isActive           Boolean   @default(true)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  patients           Patient[]
+  invoices           Invoice[]
+
+  @@map("panel_clients")
+}
+
+model Patient {
+  id                       String      @id @default(uuid())
+  mrn                      String      @unique // e.g. "MRN-2026-000001"
+  fullName                 String
+  guardianName             String?     // Father or Husband name
+  dob                      DateTime?
+  age                      Int?
+  gender                   Gender
+  bloodGroup               BloodGroup  @default(UNKNOWN)
+  phone                    String
+  alternatePhone           String?
+  address                  String?
+  city                     String?
+  nic                      String?     // National Identity Card / CNIC
+  employeeId               String?     // For corporate/panel patients
+  panelClientId            String?
+  emergencyContactName     String?
+  emergencyContactPhone    String?
+  emergencyContactRelation String?
+  registrationDate         DateTime    @default(now())
+  isActive                 Boolean     @default(true)
+  notes                    String?     @db.Text
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  panelClient              PanelClient? @relation(fields: [panelClientId], references: [id])
+  visits                   Visit[]
+  invoices                 Invoice[]
+  payments                 Payment[]
+
+  @@index([mrn])
+  @@index([fullName])
+  @@index([phone])
+  @@index([nic])
+  @@index([employeeId])
+  @@map("patients")
+}
+
+// ----------------------------------------------------
+// 3. DOCTORS & DEPARTMENTS
+// ----------------------------------------------------
+
+model Department {
+  id          String    @id @default(uuid())
+  code        String    @unique
+  name        String
+  description String?
+  isActive    Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  doctors     Doctor[]
+  visits      Visit[]
+
+  @@map("departments")
+}
+
+model Doctor {
+  id              String      @id @default(uuid())
+  name            String
+  printableTitle  String      // e.g. "Dr. Sarah Jenkins, MBBS, FCPS (Cardiology)"
+  licenseNumber   String      @unique
+  specialty       String
+  phone           String?
+  email           String?
+  departmentId    String
+  consultationFee Decimal     @default(0.00) @db.Decimal(10, 2)
+  followUpFee     Decimal     @default(0.00) @db.Decimal(10, 2)
+  signatureData   String?     @db.Text
+  isActive        Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  department      Department  @relation(fields: [departmentId], references: [id])
+  user            User?
+  visits          Visit[]
+  consultations   Consultation[]
+  prescriptions   Prescription[]
+  invoices        Invoice[]
+
+  @@map("doctors")
+}
+
+// ----------------------------------------------------
+// 4. VISITS & CLINICAL VITALS
+// ----------------------------------------------------
+
+enum VisitType {
+  NEW_CONSULTATION
+  FOLLOW_UP
+  EMERGENCY
+  OTHER
+}
+
+enum VisitStatus {
+  REGISTERED
+  WAITING
+  VITALS_COMPLETED
+  WITH_DOCTOR
+  CONSULTATION_COMPLETED
+  COMPLETED
+  CANCELLED
+}
+
+enum VisitPaymentStatus {
+  UNBILLED
+  PARTIALLY_PAID
+  PAID
+  CREDIT_PANEL
+  VOID
+}
+
+model Visit {
+  id             String             @id @default(uuid())
+  visitNumber    String             @unique // e.g. "VST-2026-000001"
+  patientId      String
+  doctorId       String
+  departmentId   String
+  visitDateTime  DateTime           @default(now())
+  tokenNumber    Int                // Daily sequence token
+  visitType      VisitType          @default(NEW_CONSULTATION)
+  status         VisitStatus        @default(REGISTERED)
+  paymentStatus  VisitPaymentStatus @default(UNBILLED)
+  priority       String             @default("NORMAL") // "NORMAL", "URGENT", "EMERGENCY"
+  notes          String?            @db.Text
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  patient        Patient            @relation(fields: [patientId], references: [id])
+  doctor         Doctor             @relation(fields: [doctorId], references: [id])
+  department     Department         @relation(fields: [departmentId], references: [id])
+
+  vitals         VisitVitals[]
+  consultations  Consultation[]
+  prescriptions  Prescription[]
+  charges        VisitCharge[]
+  invoices       Invoice[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDateTime])
+  @@index([status])
+  @@map("visits")
+}
+
+model VisitVitals {
+  id              String    @id @default(uuid())
+  visitId         String
+  patientId       String
+  temperature     Decimal?  @db.Decimal(5, 2) // in Fahrenheit (e.g. 98.6)
+  pulse           Int?      // beats per min
+  respiratoryRate  Int?      // breaths per min
+  systolicBp      Int?      // mmHg
+  diastolicBp     Int?      // mmHg
+  spo2            Decimal?  @db.Decimal(5, 2) // percentage
+  weight          Decimal?  @db.Decimal(5, 2) // kg
+  height          Decimal?  @db.Decimal(5, 2) // cm
+  bmi             Decimal?  @db.Decimal(5, 2) // calculated kg/m2
+  bloodGlucose    Decimal?  @db.Decimal(5, 2) // mg/dL
+  glucoseType     String?   // "FASTING", "RANDOM", "POST_PRANDIAL"
+  painScore       Int?      // 0 to 10
+  observations    String?   @db.Text
+  recordedById    String
+  recordedAt      DateTime  @default(now())
+
+  visit           Visit     @relation(fields: [visitId], references: [id], onDelete: Cascade)
+
+  @@index([visitId])
+  @@map("visit_vitals")
+}
+
+// ----------------------------------------------------
+// 5. DOCTOR CONSULTATIONS & DIAGNOSES
+// ----------------------------------------------------
+
+enum ClinicalRecordStatus {
+  DRAFT
+  FINALIZED
+  AMENDED
+}
+
+model Consultation {
+  id                      String               @id @default(uuid())
+  visitId                 String
+  patientId               String
+  doctorId                String
+  chiefComplaint          String               @db.Text
+  historyOfPresentIllness  String?              @db.Text
+  pastMedicalHistory      String?              @db.Text
+  physicalExamination     String?              @db.Text
+  diagnosis               String               @db.Text // Provisional / Final diagnosis
+  clinicalNotes           String?              @db.Text
+  advice                  String?              @db.Text
+  followUpDate            DateTime?
+  status                  ClinicalRecordStatus @default(DRAFT)
+  finalizedAt             DateTime?
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  visit                   Visit                @relation(fields: [visitId], references: [id])
+  doctor                  Doctor               @relation(fields: [doctorId], references: [id])
+  prescriptions           Prescription[]
+  amendments              ConsultationAmendment[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@map("consultations")
+}
+
+model ConsultationAmendment {
+  id              String       @id @default(uuid())
+  consultationId  String
+  amendedById     String
+  amendedAt       DateTime     @default(now())
+  reason          String       @db.Text
+  previousContent String       @db.Text // Snapshot JSON of pre-amended state
+  newContent      String       @db.Text // Snapshot JSON of post-amended state
+
+  consultation    Consultation @relation(fields: [consultationId], references: [id], onDelete: Cascade)
+
+  @@map("consultation_amendments")
+}
+
+// ----------------------------------------------------
+// 6. MEDICINES, INVESTIGATIONS & PRESCRIPTIONS
+// ----------------------------------------------------
+
+model Medicine {
+  id               String             @id @default(uuid())
+  brandName        String
+  genericName      String
+  strength         String             // e.g. "500mg", "10mg/5ml"
+  dosageForm       String             // Tablet, Capsule, Syrup, Injection, Drops, Inhaler, Ointment
+  manufacturer     String?
+  defaultDosage    String?            // e.g. "1 Tab"
+  defaultFrequency String?            // e.g. "1-0-1", "TDS"
+  defaultRoute     String?            // "Oral", "IV", "IM", "Topical"
+  defaultDuration  String?            // "5 Days"
+  isActive         Boolean            @default(true)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  prescriptionItems PrescriptionItem[]
+
+  @@index([brandName])
+  @@index([genericName])
+  @@map("medicines")
+}
+
+model Investigation {
+  id              String                      @id @default(uuid())
+  code            String                      @unique
+  name            String
+  category        String                      // Hematology, Biochemistry, Radiology, Ultrasound, MRI, CT
+  description     String?
+  isActive        Boolean                     @default(true)
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  prescriptionInvestigations PrescriptionInvestigation[]
+
+  @@index([name])
+  @@index([category])
+  @@map("investigations")
+}
+
+model Prescription {
+  id              String                      @id @default(uuid())
+  prescriptionNo  String                      @unique // e.g. "RX-2026-000001"
+  visitId         String
+  patientId       String
+  doctorId        String
+  consultationId  String?
+  diagnosis       String?                     @db.Text
+  clinicalNotes   String?                     @db.Text
+  advice          String?                     @db.Text
+  followUpDate    DateTime?
+  status          ClinicalRecordStatus        @default(DRAFT)
+  finalizedAt     DateTime?
+  version         Int                         @default(1)
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+
+  visit           Visit                       @relation(fields: [visitId], references: [id])
+  doctor          Doctor                      @relation(fields: [doctorId], references: [id])
+  consultation    Consultation?               @relation(fields: [consultationId], references: [id])
+  items           PrescriptionItem[]
+  investigations  PrescriptionInvestigation[]
+  amendments      PrescriptionAmendment[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@map("prescriptions")
+}
+
+enum FoodRelation {
+  BEFORE_FOOD
+  AFTER_FOOD
+  WITH_FOOD
+  EMPTY_STOMACH
+  NO_RESTRICTION
+}
+
+model PrescriptionItem {
+  id              String        @id @default(uuid())
+  prescriptionId  String
+  medicineId      String?
+  medicineName    String        // Snapshot name
+  genericName     String?       // Snapshot generic
+  strength        String?
+  dosageForm      String?
+  dose            String        // e.g. "1 Tablet", "5 ml"
+  frequency       String        // e.g. "1-0-1", "BD", "TDS", "QID", "SOS"
+  route           String        @default("Oral")
+  duration        String        // e.g. "5 days"
+  quantity        Int?          // Total units to dispense
+  instructions    String?       // e.g. "Take with a full glass of water"
+  foodRelation    FoodRelation  @default(AFTER_FOOD)
+  additionalNotes String?
+  sortOrder       Int           @default(0)
+
+  prescription    Prescription  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicine        Medicine?     @relation(fields: [medicineId], references: [id])
+
+  @@index([prescriptionId])
+  @@map("prescription_items")
+}
+
+model PrescriptionInvestigation {
+  id                String        @id @default(uuid())
+  prescriptionId    String
+  investigationId   String?
+  investigationName String        // Snapshot name
+  instructions      String?       // e.g. "Fasting required for 12 hours"
+  sortOrder         Int           @default(0)
+
+  prescription      Prescription  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  investigation     Investigation? @relation(fields: [investigationId], references: [id])
+
+  @@index([prescriptionId])
+  @@map("prescription_investigations")
+}
+
+model PrescriptionAmendment {
+  id              String        @id @default(uuid())
+  prescriptionId  String
+  amendedById     String
+  amendedAt       DateTime      @default(now())
+  reason          String        @db.Text
+  previousContent String        @db.Text // Full JSON snapshot
+  newContent      String        @db.Text // Full JSON snapshot
+
+  prescription    Prescription  @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@map("prescription_amendments")
+}
+
+// ----------------------------------------------------
+// 7. SERVICES, CHARGES, INVOICES & PAYMENTS
+// ----------------------------------------------------
+
+enum ServiceCategory {
+  CONSULTATION
+  FOLLOW_UP
+  REGISTRATION
+  PROCEDURE
+  NURSING
+  DRESSING
+  OTHER
+}
+
+model Service {
+  id            String          @id @default(uuid())
+  code          String          @unique
+  name          String
+  category      ServiceCategory @default(OTHER)
+  standardPrice Decimal         @default(0.00) @db.Decimal(10, 2)
+  isTaxable     Boolean         @default(false)
+  taxPercent    Decimal         @default(0.00) @db.Decimal(5, 2)
+  isActive      Boolean         @default(true)
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  prices        ServicePrice[]
+  charges       VisitCharge[]
+
+  @@map("services")
+}
+
+model ServicePrice {
+  id            String    @id @default(uuid())
+  serviceId     String
+  departmentId  String?
+  doctorId      String?
+  panelClientId String?
+  price         Decimal   @db.Decimal(10, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  service       Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@map("service_prices")
+}
+
+enum ChargeStatus {
+  DRAFT
+  FINALIZED
+  BILLED
+  VOIDED
+  ADJUSTED
+}
+
+model VisitCharge {
+  id          String       @id @default(uuid())
+  visitId     String
+  patientId   String
+  serviceId   String?
+  serviceName String       // Snapshot name
+  description String?
+  quantity    Int          @default(1)
+  unitPrice   Decimal      @db.Decimal(10, 2) // Snapshot price
+  discount    Decimal      @default(0.00) @db.Decimal(10, 2)
+  taxAmount   Decimal      @default(0.00) @db.Decimal(10, 2)
+  netAmount   Decimal      @db.Decimal(10, 2)
+  status      ChargeStatus @default(DRAFT)
+  createdById String
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  visit       Visit        @relation(fields: [visitId], references: [id])
+  service     Service?     @relation(fields: [serviceId], references: [id])
+  invoiceItem InvoiceItem?
+
+  @@index([visitId])
+  @@map("visit_charges")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINALIZED
+  PAID
+  PARTIALLY_PAID
+  VOIDED
+  ADJUSTED
+  REFUNDED
+}
+
+model Invoice {
+  id              String          @id @default(uuid())
+  invoiceNumber   String          @unique // e.g. "INV-2026-000001"
+  visitId         String
+  patientId       String
+  doctorId        String?
+  panelClientId   String?
+  subtotal        Decimal         @db.Decimal(10, 2)
+  discountTotal   Decimal         @default(0.00) @db.Decimal(10, 2)
+  taxTotal        Decimal         @default(0.00) @db.Decimal(10, 2)
+  netTotal        Decimal         @db.Decimal(10, 2)
+  paidTotal       Decimal         @default(0.00) @db.Decimal(10, 2)
+  balanceTotal    Decimal         @db.Decimal(10, 2)
+  status          InvoiceStatus   @default(FINALIZED)
+  panelClaimNo    String?
+  notes           String?         @db.Text
+  createdById     String
+  createdAt       DateTime        @default(now())
+  finalizedAt     DateTime?
+  updatedAt       DateTime        @updatedAt
+
+  visit           Visit           @relation(fields: [visitId], references: [id])
+  patient         Patient         @relation(fields: [patientId], references: [id])
+  doctor          Doctor?         @relation(fields: [doctorId], references: [id])
+  panelClient     PanelClient?    @relation(fields: [panelClientId], references: [id])
+
+  items           InvoiceItem[]
+  payments        Payment[]
+  adjustments     FinancialAdjustment[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([invoiceNumber])
+  @@index([createdAt])
+  @@map("invoices")
+}
+
+model InvoiceItem {
+  id          String       @id @default(uuid())
+  invoiceId   String
+  chargeId    String?      @unique
+  serviceName String       // Snapshot description
+  quantity    Int          @default(1)
+  unitPrice   Decimal      @db.Decimal(10, 2) // Immutable historical price
+  discount    Decimal      @default(0.00) @db.Decimal(10, 2)
+  taxAmount   Decimal      @default(0.00) @db.Decimal(10, 2)
+  netAmount   Decimal      @db.Decimal(10, 2)
+  createdAt   DateTime     @default(now())
+
+  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  charge      VisitCharge? @relation(fields: [chargeId], references: [id])
+
+  @@index([invoiceId])
+  @@map("invoice_items")
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  BANK_TRANSFER
+  PANEL_CREDIT
+  CHEQUE
+  ONLINE
+}
+
+model Payment {
+  id                   String                @id @default(uuid())
+  receiptNumber        String                @unique // e.g. "REC-2026-000001"
+  invoiceId            String
+  patientId            String
+  amount               Decimal               @db.Decimal(10, 2)
+  paymentMethod        PaymentMethod         @default(CASH)
+  transactionReference String?               // Auth code, cheque #, or wire ref
+  notes                String?
+  receivedById         String
+  receivedAt           DateTime              @default(now())
+
+  invoice              Invoice               @relation(fields: [invoiceId], references: [id])
+  patient              Patient               @relation(fields: [patientId], references: [id])
+  adjustments          FinancialAdjustment[]
+
+  @@index([invoiceId])
+  @@index([patientId])
+  @@index([receiptNumber])
+  @@map("payments")
+}
+
+enum AdjustmentType {
+  DISCOUNT_ADJUSTMENT
+  CORRECTION
+  REFUND
+  WRITE_OFF
+  VOID
+}
+
+model FinancialAdjustment {
+  id               String         @id @default(uuid())
+  adjustmentNumber String         @unique // e.g. "ADJ-2026-000001"
+  invoiceId        String
+  paymentId        String?
+  type             AdjustmentType
+  originalAmount   Decimal        @db.Decimal(10, 2)
+  adjustedAmount   Decimal        @db.Decimal(10, 2)
+  differenceAmount Decimal        @db.Decimal(10, 2)
+  reason           String         @db.Text
+  authorizedById   String
+  createdAt        DateTime       @default(now())
+
+  invoice          Invoice        @relation(fields: [invoiceId], references: [id])
+  payment          Payment?       @relation(fields: [paymentId], references: [id])
+
+  @@index([invoiceId])
+  @@map("financial_adjustments")
+}
+
+// ----------------------------------------------------
+// 8. ATOMIC NUMBERING SEQUENCES
+// ----------------------------------------------------
+
+model SequenceCounter {
+  name        String   @id // "MRN", "VISIT", "INVOICE", "PRESCRIPTION", "RECEIPT", "ADJUSTMENT"
+  prefix      String   // e.g. "MRN-2026-", "INV-2026-"
+  currentVal  Int      @default(0)
+  updatedAt   DateTime @updatedAt
+
+  @@map("sequence_counters")
+}
+
+// ----------------------------------------------------
+// 9. AUDIT LOGGING & SYSTEM CONFIG
+// ----------------------------------------------------
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  userName   String?
+  userRole   String?
+  action     String   // "LOGIN", "PATIENT_CREATE", "PRESCRIPTION_FINALIZE", "INVOICE_CREATE", "VOID", etc.
+  entityType String   // "Patient", "Visit", "Consultation", "Prescription", "Invoice", "Payment", etc.
+  entityId   String?
+  oldValue   String?  @db.Text // JSON string
+  newValue   String?  @db.Text // JSON string
+  reason     String?  @db.Text
+  ipAddress  String?
+  timestamp  DateTime @default(now())
+
+  user       User?    @relation(fields: [userId], references: [id])
+
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([timestamp])
+  @@map("audit_logs")
+}
+
+model HospitalSetting {
+  id                       String   @id @default("default_config")
+  hospitalName             String   @default("City Hospital")
+  tagline                  String?  @default("Center for Medical Excellence")
+  address                  String   @default("123 Healthcare Boulevard, Medical District")
+  city                     String   @default("Metropolis")
+  phone                    String   @default("+1 (555) 019-2834")
+  email                    String   @default("info@cityhospital.org")
+  website                  String?  @default("www.cityhospital.org")
+  taxNumber                String?
+  currencySymbol           String   @default("Rs.")
+  logoBase64               String?  @db.Text
+  prescriptionDisclaimer   String?  @db.Text @default("This prescription is valid for 7 days. Not valid for medico-legal purposes without hospital seal.")
+  invoiceDisclaimer        String?  @db.Text @default("Payment is due upon receipt. Computer generated invoice does not require physical signature.")
+  updatedAt                DateTime @updatedAt
+
+  @@map("hospital_settings")
+}

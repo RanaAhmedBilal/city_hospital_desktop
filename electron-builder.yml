@@ -1,0 +1,45 @@
+appId: com.cityhospital.hms
+productName: City Hospital HMS
+directories:
+  output: dist
+files:
+  - "dist-electron/**/*"
+  - "dist-renderer/**/*"
+  - "node_modules/**/*"
+  - "node_modules/.prisma/**/*"
+  - "!node_modules/.cache/**/*"
+  - "prisma/**/*"
+  - "package.json"
+
+# Enable asar for faster startup and smaller footprint.
+# Prisma native binaries must be unpacked so the query engine .dll.node
+# can be loaded at runtime via Node's native module loader.
+asar: true
+asarUnpack:
+  - "node_modules/.prisma/**/*"
+  - "node_modules/@prisma/client/**/*"
+  - "node_modules/@prisma/engines/**/*"
+  - "dist-electron/main/database/client/**/*"
+  - "prisma/**/*"
+
+extraResources:
+  - from: "prisma"
+    to: "prisma"
+    filter:
+      - "**/*"
+  - from: ".env"
+    to: ".env"
+
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: City Hospital HMS
