@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { PrismaClient } from '../client';
+import { PrismaClient } from '../client/index.js';
 import { RoleType, ROLE_PERMISSIONS } from '../../../shared/constants/roles';
 
 const prisma = new PrismaClient();
@@ -89,72 +89,83 @@ async function main() {
     deptMap[dept.code] = created.id;
   }
 
-  // // 4. Doctors
-  // const doctorsData = [
-  //   {
-  //     name: 'Dr. Sarah Jenkins',
-  //     printableTitle: 'Dr. Sarah Jenkins, MBBS, FCPS, FACC (Cardiologist)',
-  //     licenseNumber: 'PMC-CARD-49201',
-  //     specialty: 'Cardiology',
-  //     departmentId: deptMap['CARDIO'],
-  //     consultationFee: 2500,
-  //     followUpFee: 1500,
-  //     phone: '+1 (555) 431-9011',
-  //     email: 'sarah.jenkins@cityhospital.org',
-  //   },
-  //   {
-  //     name: 'Dr. Ahmed Khan',
-  //     printableTitle: 'Dr. Ahmed Khan, MBBS, MD (Internal Medicine)',
-  //     licenseNumber: 'PMC-MED-18293',
-  //     specialty: 'General Medicine',
-  //     departmentId: deptMap['GEN_MED'],
-  //     consultationFee: 2000,
-  //     followUpFee: 1200,
-  //     phone: '+1 (555) 431-9012',
-  //     email: 'ahmed.khan@cityhospital.org',
-  //   },
-  //   {
-  //     name: 'Dr. Emily Davis',
-  //     printableTitle: 'Dr. Emily Davis, MBBS, DCH, MCPS (Pediatrics)',
-  //     licenseNumber: 'PMC-PED-38290',
-  //     specialty: 'Pediatrics',
-  //     departmentId: deptMap['PED'],
-  //     consultationFee: 2200,
-  //     followUpFee: 1400,
-  //     phone: '+1 (555) 431-9013',
-  //     email: 'emily.davis@cityhospital.org',
-  //   },
-  //   {
-  //     name: 'Dr. Robert Chen',
-  //     printableTitle: 'Dr. Robert Chen, MBBS, MS Ortho, FRCS',
-  //     licenseNumber: 'PMC-ORTH-71029',
-  //     specialty: 'Orthopedics',
-  //     departmentId: deptMap['ORTHO'],
-  //     consultationFee: 2800,
-  //     followUpFee: 1800,
-  //     phone: '+1 (555) 431-9014',
-  //     email: 'robert.chen@cityhospital.org',
-  //   },
-  // ];
+  // 4. Doctors
+  const doctorsData = [
+    {
+      name: 'Dr. Sarah Jenkins',
+      printableTitle: 'Dr. Sarah Jenkins, MBBS, FCPS, FACC (Cardiologist)',
+      licenseNumber: 'PMC-CARD-49201',
+      specialty: 'Cardiology',
+      departmentId: deptMap['CARDIO'],
+      consultationFee: 2500,
+      followUpFee: 1500,
+      phone: '+92 300 4319011',
+      email: 'sarah.jenkins@cityhospital.org',
+    },
+    {
+      name: 'Dr. Ahmed Khan',
+      printableTitle: 'Dr. Ahmed Khan, MBBS, MD (Internal Medicine)',
+      licenseNumber: 'PMC-MED-18293',
+      specialty: 'General Medicine',
+      departmentId: deptMap['GEN_MED'],
+      consultationFee: 2000,
+      followUpFee: 1200,
+      phone: '+92 301 4319012',
+      email: 'ahmed.khan@cityhospital.org',
+    },
+    {
+      name: 'Dr. Emily Davis',
+      printableTitle: 'Dr. Emily Davis, MBBS, DCH, MCPS (Pediatrics)',
+      licenseNumber: 'PMC-PED-38290',
+      specialty: 'Pediatrics',
+      departmentId: deptMap['PED'],
+      consultationFee: 2200,
+      followUpFee: 1400,
+      phone: '+92 302 4319013',
+      email: 'emily.davis@cityhospital.org',
+    },
+    {
+      name: 'Dr. Robert Chen',
+      printableTitle: 'Dr. Robert Chen, MBBS, MS Ortho, FRCS',
+      licenseNumber: 'PMC-ORTH-71029',
+      specialty: 'Orthopedics',
+      departmentId: deptMap['ORTHO'],
+      consultationFee: 2800,
+      followUpFee: 1800,
+      phone: '+92 303 4319014',
+      email: 'robert.chen@cityhospital.org',
+    },
+    {
+      name: 'Dr. Ayesha Malik',
+      printableTitle: 'Dr. Ayesha Malik, MBBS, FCPS (Gynecology)',
+      licenseNumber: 'PMC-GYN-88210',
+      specialty: 'Gynecology & Obstetrics',
+      departmentId: deptMap['GYN'],
+      consultationFee: 2500,
+      followUpFee: 1500,
+      phone: '+92 304 4319015',
+      email: 'ayesha.malik@cityhospital.org',
+    },
+  ];
 
-  // const docMap: Record<string, string> = {};
-  // for (const doc of doctorsData) {
-  //   const created = await prisma.doctor.upsert({
-  //     where: { licenseNumber: doc.licenseNumber },
-  //     update: {
-  //       name: doc.name,
-  //       printableTitle: doc.printableTitle,
-  //       consultationFee: doc.consultationFee,
-  //       followUpFee: doc.followUpFee,
-  //       specialty: doc.specialty,
-  //       departmentId: doc.departmentId,
-  //     },
-  //     create: doc,
-  //   });
-  //   docMap[doc.name] = created.id;
-  // }
+  const createdDoctors: any[] = [];
+  for (const doc of doctorsData) {
+    const created = await prisma.doctor.upsert({
+      where: { licenseNumber: doc.licenseNumber },
+      update: {
+        name: doc.name,
+        printableTitle: doc.printableTitle,
+        consultationFee: doc.consultationFee,
+        followUpFee: doc.followUpFee,
+        specialty: doc.specialty,
+        departmentId: doc.departmentId,
+      },
+      create: doc,
+    });
+    createdDoctors.push(created);
+  }
 
-  // 5. Users & Credential Accounts (Admin & Receptionist)
+  // 5. Users & Credential Accounts
   const usersData = [
     {
       username: 'admin',
@@ -170,8 +181,16 @@ async function main() {
       role: RoleType.RECEPTION,
       email: 'reception@cityhospital.org',
     },
+    {
+      username: 'cashier',
+      fullName: 'Senior Cashier Desk',
+      password: 'cashier123',
+      role: RoleType.RECEPTION,
+      email: 'cashier@cityhospital.org',
+    },
   ];
 
+  let adminUserId = '';
   for (const u of usersData) {
     const passwordHash = await bcrypt.hash(u.password, 10);
     const user = await prisma.user.upsert({
@@ -189,6 +208,8 @@ async function main() {
         isActive: true,
       },
     });
+
+    if (u.username === 'admin') adminUserId = user.id;
 
     const role = await prisma.role.findUnique({ where: { name: u.role } });
     if (role) {
@@ -208,72 +229,59 @@ async function main() {
     }
   }
 
-  // // 6. Panel Clients
-  // const panelData = [
-  //   {
-  //     code: 'NAT_HEALTH',
-  //     name: 'National Health Services Corporation',
-  //     contactPerson: 'Marcus Wright',
-  //     phone: '+1 (555) 201-8844',
-  //     email: 'billing@nathealthcorp.com',
-  //     address: '742 Executive Way, Suite 400',
-  //     discountPercent: 15.0,
-  //     billingType: 'CREDIT',
-  //   },
-  //   {
-  //     code: 'APEX_CARE',
-  //     name: 'Apex Corporate Wellness Trust',
-  //     contactPerson: 'Elena Rostova',
-  //     phone: '+1 (555) 309-1122',
-  //     email: 'claims@apexcorp.org',
-  //     address: '100 Financial Center, 12th Floor',
-  //     discountPercent: 20.0,
-  //     billingType: 'CREDIT',
-  //   },
-  //   {
-  //     code: 'POLICE_WELFARE',
-  //     name: 'Metropolis Police Welfare Board',
-  //     contactPerson: 'Captain John Brody',
-  //     phone: '+1 (555) 911-0044',
-  //     email: 'welfare@metropolice.gov',
-  //     address: '500 Central Police Plaza',
-  //     discountPercent: 25.0,
-  //     billingType: 'CREDIT',
-  //   },
-  // ];
+  // 6. Panel Clients
+  const panelData = [
+    {
+      code: 'NAT_HEALTH',
+      name: 'National Health Services Corporation',
+      contactPerson: 'Marcus Wright',
+      phone: '+92 321 2018844',
+      email: 'billing@nathealthcorp.com',
+      address: '742 Executive Way, Suite 400',
+      discountPercent: 15.0,
+      billingType: 'CREDIT',
+    },
+    {
+      code: 'APEX_CARE',
+      name: 'Apex Corporate Wellness Trust',
+      contactPerson: 'Elena Rostova',
+      phone: '+92 322 3091122',
+      email: 'claims@apexcorp.org',
+      address: '100 Financial Center, 12th Floor',
+      discountPercent: 20.0,
+      billingType: 'CREDIT',
+    },
+  ];
 
-  // for (const p of panelData) {
-  //   await prisma.panelClient.upsert({
-  //     where: { code: p.code },
-  //     update: p,
-  //     create: p,
-  //   });
-  // }
+  const createdPanels: any[] = [];
+  for (const p of panelData) {
+    const created = await prisma.panelClient.upsert({
+      where: { code: p.code },
+      update: p,
+      create: p,
+    });
+    createdPanels.push(created);
+  }
 
-  // // 7. Medicine Master
-  // const medicines = [
-  //   { brandName: 'Augmentin', genericName: 'Amoxicillin + Clavulanic Acid', strength: '625mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '5 Days' },
-  //   { brandName: 'Panadol', genericName: 'Paracetamol', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1-2 Tabs', defaultFrequency: 'TDS (PRN)', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-  //   { brandName: 'Brufen', genericName: 'Ibuprofen', strength: '400mg', dosageForm: 'Tablet', manufacturer: 'Abbott', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-  //   { brandName: 'Risek', genericName: 'Omeprazole', strength: '40mg', dosageForm: 'Capsule', manufacturer: 'Getz Pharma', defaultDosage: '1 Cap', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '14 Days' },
-  //   { brandName: 'Lipitor', genericName: 'Atorvastatin', strength: '20mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Night)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-  //   { brandName: 'Glucophage', genericName: 'Metformin HCl', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-  //   { brandName: 'Concor', genericName: 'Bisoprolol Fumarate', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-  //   { brandName: 'Norvasc', genericName: 'Amlodipine', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
-  //   { brandName: 'Zithromax', genericName: 'Azithromycin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
-  //   { brandName: 'Ciprobay', genericName: 'Ciprofloxacin', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Bayer', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '5 Days' },
-  //   { brandName: 'Ventolin Inhaler', genericName: 'Salbutamol', strength: '100mcg/puff', dosageForm: 'Inhaler', manufacturer: 'GSK', defaultDosage: '2 Puffs', defaultFrequency: 'PRN / QID', defaultRoute: 'Inhalation', defaultDuration: 'As needed' },
-  //   { brandName: 'Clexane', genericName: 'Enoxaparin Sodium', strength: '40mg/0.4ml', dosageForm: 'Injection', manufacturer: 'Sanofi', defaultDosage: '1 Syringe', defaultFrequency: 'OD', defaultRoute: 'Subcutaneous', defaultDuration: '5 Days' },
-  // ];
+  // 7. Medicine Master
+  const medicines = [
+    { brandName: 'Augmentin', genericName: 'Amoxicillin + Clavulanic Acid', strength: '625mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '5 Days' },
+    { brandName: 'Panadol', genericName: 'Paracetamol', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'GSK', defaultDosage: '1-2 Tabs', defaultFrequency: 'TDS (PRN)', defaultRoute: 'Oral', defaultDuration: '3 Days' },
+    { brandName: 'Brufen', genericName: 'Ibuprofen', strength: '400mg', dosageForm: 'Tablet', manufacturer: 'Abbott', defaultDosage: '1 Tab', defaultFrequency: 'BD', defaultRoute: 'Oral', defaultDuration: '3 Days' },
+    { brandName: 'Risek', genericName: 'Omeprazole', strength: '40mg', dosageForm: 'Capsule', manufacturer: 'Getz Pharma', defaultDosage: '1 Cap', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '14 Days' },
+    { brandName: 'Lipitor', genericName: 'Atorvastatin', strength: '20mg', dosageForm: 'Tablet', manufacturer: 'Pfizer', defaultDosage: '1 Tab', defaultFrequency: 'OD (Night)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+    { brandName: 'Glucophage', genericName: 'Metformin HCl', strength: '500mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: '1-0-1 (BD)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+    { brandName: 'Concor', genericName: 'Bisoprolol Fumarate', strength: '5mg', dosageForm: 'Tablet', manufacturer: 'Merck', defaultDosage: '1 Tab', defaultFrequency: 'OD (Morning)', defaultRoute: 'Oral', defaultDuration: '30 Days' },
+  ];
 
-  // for (const m of medicines) {
-  //   const existing = await prisma.medicine.findFirst({
-  //     where: { brandName: m.brandName, strength: m.strength },
-  //   });
-  //   if (!existing) {
-  //     await prisma.medicine.create({ data: m });
-  //   }
-  // }
+  for (const m of medicines) {
+    const existing = await prisma.medicine.findFirst({
+      where: { brandName: m.brandName, strength: m.strength },
+    });
+    if (!existing) {
+      await prisma.medicine.create({ data: m });
+    }
+  }
 
   // 8. Doctor-Requested Investigations Master
   const investigations = [
@@ -286,12 +294,8 @@ async function main() {
     { code: 'LIPID', name: 'Lipid Profile', category: 'Biochemistry', description: 'Total Cholesterol, HDL, LDL, Triglycerides' },
     { code: 'URINE_RE', name: 'Urine Routine Examination (R/E)', category: 'Clinical Pathology', description: 'Microscopic and chemical urinalysis' },
     { code: 'XRAY_CHEST', name: 'X-Ray Chest PA View', category: 'Radiology', description: 'Plain radiograph of the chest and lungs' },
-    { code: 'XRAY_LUMBAR', name: 'X-Ray Lumbo-sacral Spine AP/Lat', category: 'Radiology', description: 'Lumbar spinal radiography' },
-    { code: 'USG_ABD', name: 'Ultrasound Whole Abdomen & Pelvis', category: 'Ultrasound', description: 'Sonographic examination of liver, kidneys, gallbladder, spleen' },
     { code: 'ECG', name: '12-Lead Electrocardiogram (ECG)', category: 'Cardiology', description: 'Resting cardiac electrical activity recording' },
-    { code: 'ECHO', name: '2D Transthoracic Echocardiography', category: 'Cardiology', description: 'Cardiac ultrasound with Doppler evaluation' },
-    { code: 'CT_BRAIN', name: 'CT Scan Brain (Plain)', category: 'Computed Tomography', description: 'Axial cranial computed tomography' },
-    { code: 'MRI_BRAIN', name: 'MRI Brain with Contrast', category: 'Magnetic Resonance', description: 'Cranial magnetic resonance imaging' },
+    { code: 'USG_ABD', name: 'Ultrasound Whole Abdomen & Pelvis', category: 'Ultrasound', description: 'Sonographic examination of abdomen' },
   ];
 
   for (const inv of investigations) {
@@ -310,9 +314,7 @@ async function main() {
     { code: 'SRV_EMERGENCY', name: 'Emergency Triage & Assessment', category: 'PROCEDURE', standardPrice: 3000, isTaxable: false, taxPercent: 0 },
     { code: 'SRV_ECG', name: 'ECG Diagnostic Service', category: 'PROCEDURE', standardPrice: 800, isTaxable: false, taxPercent: 0 },
     { code: 'SRV_DRESSING_S', name: 'Wound Dressing (Small)', category: 'DRESSING', standardPrice: 500, isTaxable: false, taxPercent: 0 },
-    { code: 'SRV_DRESSING_L', name: 'Wound Dressing (Large / Burn)', category: 'DRESSING', standardPrice: 1200, isTaxable: false, taxPercent: 0 },
     { code: 'SRV_INJ_ADMIN', name: 'Injection Administration (IM/IV)', category: 'NURSING', standardPrice: 300, isTaxable: false, taxPercent: 0 },
-    { code: 'SRV_NEB', name: 'Nebulization Session', category: 'NURSING', standardPrice: 400, isTaxable: false, taxPercent: 0 },
   ];
 
   for (const s of services) {
@@ -326,12 +328,12 @@ async function main() {
   // 10. Sequence Counters
   const currentYear = new Date().getFullYear();
   const sequenceDefaults = [
-    { name: 'MRN', prefix: `MRN-${currentYear}-`, currentVal: 100 },
-    { name: 'VISIT', prefix: `VST-${currentYear}-`, currentVal: 100 },
-    { name: 'INVOICE', prefix: `INV-${currentYear}-`, currentVal: 100 },
-    { name: 'PRESCRIPTION', prefix: `RX-${currentYear}-`, currentVal: 100 },
-    { name: 'RECEIPT', prefix: `REC-${currentYear}-`, currentVal: 100 },
-    { name: 'ADJUSTMENT', prefix: `ADJ-${currentYear}-`, currentVal: 100 },
+    { name: 'MRN', prefix: `MRN-${currentYear}-`, currentVal: 120 },
+    { name: 'VISIT', prefix: `VST-${currentYear}-`, currentVal: 150 },
+    { name: 'INVOICE', prefix: `INV-${currentYear}-`, currentVal: 150 },
+    { name: 'PRESCRIPTION', prefix: `RX-${currentYear}-`, currentVal: 150 },
+    { name: 'RECEIPT', prefix: `REC-${currentYear}-`, currentVal: 150 },
+    { name: 'ADJUSTMENT', prefix: `ADJ-${currentYear}-`, currentVal: 150 },
   ];
 
   for (const seq of sequenceDefaults) {
@@ -342,7 +344,146 @@ async function main() {
     });
   }
 
-  console.log('City Hospital database seeded successfully!');
+  // 11. Historical Seed Data: Patients, Visits, Invoices, & Payments for Analytics & Cashier Desk
+  console.log('Seeding sample patients, historical visits, invoices & payments for visual analytics...');
+
+  const samplePatientsData = [
+    { mrn: `MRN-${currentYear}-000101`, fullName: 'Muhammad Tariq', gender: 'MALE', age: 45, phone: '+92 300 5550101', bloodGroup: 'B_POSITIVE', city: 'Gujranwala' },
+    { mrn: `MRN-${currentYear}-000102`, fullName: 'Zainab Bibi', gender: 'FEMALE', age: 38, phone: '+92 301 5550102', bloodGroup: 'O_POSITIVE', city: 'Nowshera Virkan' },
+    { mrn: `MRN-${currentYear}-000103`, fullName: 'Usman Ali', gender: 'MALE', age: 29, phone: '+92 302 5550103', bloodGroup: 'A_POSITIVE', city: 'Gujranwala' },
+    { mrn: `MRN-${currentYear}-000104`, fullName: 'Fatima Noor', gender: 'FEMALE', age: 52, phone: '+92 303 5550104', bloodGroup: 'AB_POSITIVE', city: 'Kamoke' },
+    { mrn: `MRN-${currentYear}-000105`, fullName: 'Bilal Hussain', gender: 'MALE', age: 60, phone: '+92 304 5550105', bloodGroup: 'O_NEGATIVE', city: 'Gujranwala' },
+    { mrn: `MRN-${currentYear}-000106`, fullName: 'Saima Rashid', gender: 'FEMALE', age: 34, phone: '+92 305 5550106', bloodGroup: 'B_POSITIVE', city: 'Sheikhupura' },
+    { mrn: `MRN-${currentYear}-000107`, fullName: 'Hamza Farooq', gender: 'MALE', age: 22, phone: '+92 306 5550107', bloodGroup: 'A_NEGATIVE', city: 'Gujranwala' },
+    { mrn: `MRN-${currentYear}-000108`, fullName: 'Mariam Sajid', gender: 'FEMALE', age: 41, phone: '+92 307 5550108', bloodGroup: 'O_POSITIVE', city: 'Nowshera Virkan' },
+  ];
+
+  const createdPatients: any[] = [];
+  for (const pt of samplePatientsData) {
+    const created = await prisma.patient.upsert({
+      where: { mrn: pt.mrn },
+      update: pt as any,
+      create: pt as any,
+    });
+    createdPatients.push(created);
+  }
+
+  // Generate historical visits spanning the last 30 days
+  const now = new Date();
+  const paymentMethodsList = ['CASH', 'CARD', 'BANK_TRANSFER', 'PANEL_CREDIT', 'ONLINE'];
+  let invSeq = 100;
+  let visitSeq = 100;
+  let recSeq = 100;
+
+  for (let dayOffset = 30; dayOffset >= 0; dayOffset--) {
+    const visitDate = new Date(now);
+    visitDate.setDate(visitDate.getDate() - dayOffset);
+    visitDate.setHours(9 + (dayOffset % 8), (dayOffset * 15) % 60, 0, 0);
+
+    // Create 1-3 visits per day
+    const visitsCount = 1 + (dayOffset % 3);
+    for (let i = 0; i < visitsCount; i++) {
+      const uniqueSeedId = `${Date.now().toString().slice(-4)}${String(dayOffset).padStart(2, '0')}${i}`;
+      const patientObj = createdPatients[(dayOffset + i) % createdPatients.length];
+      const doctorObj = createdDoctors[(dayOffset + i) % createdDoctors.length];
+
+      const visitRecord = await prisma.visit.create({
+        data: {
+          visitNumber: `VST-${currentYear}-S${uniqueSeedId}`,
+          patientId: patientObj.id,
+          doctorId: doctorObj.id,
+          departmentId: doctorObj.departmentId,
+          visitDateTime: visitDate,
+          tokenNumber: i + 1,
+          visitType: i % 2 === 0 ? 'NEW_CONSULTATION' : 'FOLLOW_UP',
+          status: dayOffset === 0 ? 'WAITING' : 'COMPLETED',
+          paymentStatus: dayOffset % 4 === 0 ? 'UNBILLED' : dayOffset % 3 === 0 ? 'PARTIALLY_PAID' : 'PAID',
+          priority: 'NORMAL',
+          notes: 'Routine outpatient consultation',
+        },
+      });
+
+      // Create Visit Charges
+      const consultChargeNet = doctorObj.consultationFee;
+      const chargeRecord = await prisma.visitCharge.create({
+        data: {
+          visitId: visitRecord.id,
+          patientId: patientObj.id,
+          serviceName: `${doctorObj.specialty} Consultation Fee`,
+          quantity: 1,
+          unitPrice: consultChargeNet,
+          discount: 0,
+          netAmount: consultChargeNet,
+          status: dayOffset % 4 === 0 ? 'DRAFT' : 'BILLED',
+          createdById: adminUserId || userFallbackId(),
+        },
+      });
+
+      // For non-unbilled visits, generate Invoices & Payments
+      if (dayOffset % 4 !== 0) {
+        const netTotal = consultChargeNet;
+        const isPaid = dayOffset % 3 !== 0; // Partial paid vs Fully Paid
+        const paidTotal = isPaid ? netTotal : Math.round(netTotal / 2);
+        const balanceTotal = netTotal - paidTotal;
+        const invStatus = isPaid ? 'PAID' : 'PARTIALLY_PAID';
+
+        const invRecord = await prisma.invoice.create({
+          data: {
+            invoiceNumber: `INV-${currentYear}-S${uniqueSeedId}`,
+            visitId: visitRecord.id,
+            patientId: patientObj.id,
+            doctorId: doctorObj.id,
+            subtotal: netTotal,
+            discountTotal: 0,
+            taxTotal: 0,
+            netTotal: netTotal,
+            paidTotal: paidTotal,
+            balanceTotal: balanceTotal,
+            status: invStatus as any,
+            createdById: adminUserId || userFallbackId(),
+            createdAt: visitDate,
+          },
+        });
+
+        // Link Invoice Item
+        await prisma.invoiceItem.create({
+          data: {
+            invoiceId: invRecord.id,
+            chargeId: chargeRecord.id,
+            serviceName: chargeRecord.serviceName,
+            quantity: 1,
+            unitPrice: consultChargeNet,
+            discount: 0,
+            netAmount: consultChargeNet,
+            createdAt: visitDate,
+          },
+        });
+
+        // Create Payment Record
+        const payMethod = paymentMethodsList[(dayOffset + i) % paymentMethodsList.length];
+
+        await prisma.payment.create({
+          data: {
+            receiptNumber: `REC-${currentYear}-S${uniqueSeedId}`,
+            invoiceId: invRecord.id,
+            patientId: patientObj.id,
+            amount: paidTotal,
+            paymentMethod: payMethod as any,
+            transactionReference: payMethod !== 'CASH' ? `TXN-${Date.now()}-${i}` : null,
+            notes: 'Settlement at cashier counter',
+            receivedById: adminUserId || userFallbackId(),
+            receivedAt: visitDate,
+          },
+        });
+      }
+    }
+  }
+
+  console.log('City Hospital database seeded successfully with historical analytics & billing records!');
+}
+
+function userFallbackId() {
+  return 'default_admin_id';
 }
 
 main()

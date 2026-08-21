@@ -13,8 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "node dist-electron/database/seed.js",
-    "db:seed": "ts-node --transpile-only src/main/database/seed/seed.ts",
+    "prisma:seed": "npm run build:electron && node dist-electron/main/database/seed/seed.js",
+    "db:seed": "npm run build:electron && node dist-electron/main/database/seed/seed.js",
     "test:db": "node test-db-conn.js"
   },
   "keywords": [

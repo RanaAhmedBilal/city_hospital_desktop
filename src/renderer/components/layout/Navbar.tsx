@@ -1,6 +1,7 @@
 import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { Building2, User, LogOut, Menu } from 'lucide-react';
+import { useThemeStore } from '../../stores/themeStore';
+import { Building2, User, LogOut, Menu, Sun, Moon } from 'lucide-react';
 
 interface NavbarProps {
   onToggleSidebar?: () => void;
@@ -8,6 +9,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
   const { user, logout } = useAuthStore();
+  const { theme, toggleTheme } = useThemeStore();
 
   return (
     <header
@@ -61,8 +63,37 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleSidebar }) => {
         </div>
       </div>
 
-      {/* User Status Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      {/* User & Theme Status Bar */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Theme Mode Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="btn btn-secondary btn-sm"
+          title={`Switch to ${theme === 'dark' ? 'Light Mode (White Theme)' : 'Dark Mode (Dark Slate Theme)'}`}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.4rem',
+            padding: '0.35rem 0.75rem',
+            borderRadius: 'var(--radius-sm)',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          {theme === 'dark' ? (
+            <>
+              <Sun size={15} color="#fbbf24" />
+              <span>Light Mode</span>
+            </>
+          ) : (
+            <>
+              <Moon size={15} color="#818cf8" />
+              <span>Dark Mode</span>
+            </>
+          )}
+        </button>
+
         {user && (
           <div style={{
             display: 'flex',

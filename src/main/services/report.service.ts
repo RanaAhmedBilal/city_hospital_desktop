@@ -235,4 +235,218 @@ export class ReportService {
 
     return Array.from(countMap.values()).sort((a, b) => b.count - a.count);
   }
+
+  /**
+   * Comprehensive time-series analytics and trend data for graphs
+   */
+  static async getAnalyticsTrends(filters: {
+    granularity?: 'daily' | 'monthly' | 'yearly';
+    startDate?: string;
+    endDate?: string;
+    departmentId?: string;
+    doctorId?: string;
+    paymentMethod?: string;
+  }) {
+    const granularity = filters.granularity || 'daily';
+
+    // 1. Calculate date boundaries
+    const now = new Date();
+    let startDate: Date;
+    let endDate: Date = filters.endDate ? new Date(filters.endDate) : new Date(now);
+    endDate.setHours(23, 59, 59, 999);
+
+    if (filters.startDate) {
+      startDate = new Date(filters.startDate);
+      startDate.setHours(0, 0, 0, 0);
+    } else {
+      startDate = new Date(now);
+      if (granularity === 'daily') {
+        startDate.setDate(startDate.getDate() - 14); // default last 14 days
+      } else if (granularity === 'monthly') {
+        startDate.setMonth(startDate.getMonth() - 12); // default last 12 months
+      } else {
+        startDate.setFullYear(startDate.getFullYear() - 5); // default last 5 years
+      }
+      startDate.setHours(0, 0, 0, 0);
+    }
+
+    // Build filter objects for prisma
+    const invoiceWhere: any = {
+      createdAt: { gte: startDate, lte: endDate },
+      status: { not: InvoiceStatus.VOIDED },
+    };
+    if (filters.doctorId) invoiceWhere.doctorId = filters.doctorId;
+
+    const visitWhere: any = {
+      visitDateTime: { gte: startDate, lte: endDate },
+    };
+    if (filters.doctorId) visitWhere.doctorId = filters.doctorId;
+    if (filters.departmentId) visitWhere.departmentId = filters.departmentId;
+
+    const paymentWhere: any = {
+      receivedAt: { gte: startDate, lte: endDate },
+    };
+    if (filters.paymentMethod) paymentWhere.paymentMethod = filters.paymentMethod;
+
+    const [invoices, visits, payments, departments] = await Promise.all([
+      prisma.invoice.findMany({
+        where: invoiceWhere,
+        include: {
+          patient: true,
+          doctor: { include: { department: true } },
+          payments: true,
+        },
+      }),
+      prisma.visit.findMany({
+        where: visitWhere,
+        include: {
+          doctor: { include: { department: true } },
+          department: true,
+        },
+      }),
+      prisma.payment.findMany({
+        where: paymentWhere,
+      }),
+      prisma.department.findMany({
+        where: { isActive: true },
+      }),
+    ]);
+
+    // 2. Build bucket keys for timeline based on granularity
+    const timelineMap = new Map<string, {
+      label: string;
+      revenue: number;
+      collected: number;
+      pending: number;
+      patientCount: number;
+    }>();
+
+    const getBucketKey = (d: Date): { key: string; label: string } => {
+      const year = d.getFullYear();
+      const monthNum = d.getMonth() + 1;
+      const monthStr = String(monthNum).padStart(2, '0');
+      const dayStr = String(d.getDate()).padStart(2, '0');
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+      if (granularity === 'monthly') {
+        return { key: `${year}-${monthStr}`, label: `${monthNames[d.getMonth()]} ${year}` };
+      } else if (granularity === 'yearly') {
+        const yStr = String(year);
+        return { key: yStr, label: yStr };
+      } else {
+        // Daily: Local YYYY-MM-DD
+        const localIso = `${year}-${monthStr}-${dayStr}`;
+        const label = `${d.getDate()} ${monthNames[d.getMonth()]}`;
+        return { key: localIso, label };
+      }
+    };
+
+    // Populate timeline buckets chronologically
+    const curr = new Date(startDate);
+    while (curr <= endDate) {
+      const { key, label } = getBucketKey(curr);
+      if (!timelineMap.has(key)) {
+        timelineMap.set(key, { label, revenue: 0, collected: 0, pending: 0, patientCount: 0 });
+      }
+      if (granularity === 'daily') curr.setDate(curr.getDate() + 1);
+      else if (granularity === 'monthly') curr.setMonth(curr.getMonth() + 1);
+      else curr.setFullYear(curr.getFullYear() + 1);
+    }
+
+    // Populate invoice revenue data into buckets
+    invoices.forEach((inv) => {
+      if (filters.departmentId && inv.doctor?.departmentId !== filters.departmentId) return;
+
+      const { key } = getBucketKey(new Date(inv.createdAt));
+      let bucket = timelineMap.get(key);
+      if (!bucket) {
+        const { label } = getBucketKey(new Date(inv.createdAt));
+        bucket = { label, revenue: 0, collected: 0, pending: 0, patientCount: 0 };
+        timelineMap.set(key, bucket);
+      }
+      bucket.revenue += Number(inv.netTotal);
+      bucket.collected += Number(inv.paidTotal);
+      bucket.pending += Number(inv.balanceTotal);
+    });
+
+    // Populate patient visit counts into buckets
+    visits.forEach((v) => {
+      const { key } = getBucketKey(new Date(v.visitDateTime));
+      let bucket = timelineMap.get(key);
+      if (!bucket) {
+        const { label } = getBucketKey(new Date(v.visitDateTime));
+        bucket = { label, revenue: 0, collected: 0, pending: 0, patientCount: 0 };
+        timelineMap.set(key, bucket);
+      }
+      bucket.patientCount += 1;
+    });
+
+    const timeline = Array.from(timelineMap.entries())
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([key, item]) => ({ key, ...item }));
+
+    // 3. Compute Department Revenue & Volume Breakdown
+    const deptMap = new Map<string, { id: string; name: string; revenue: number; patientCount: number }>();
+    departments.forEach((d) => {
+      deptMap.set(d.id, { id: d.id, name: d.name, revenue: 0, patientCount: 0 });
+    });
+
+    visits.forEach((v) => {
+      if (deptMap.has(v.departmentId)) {
+        deptMap.get(v.departmentId)!.patientCount += 1;
+      }
+    });
+
+    invoices.forEach((inv) => {
+      if (inv.doctor?.departmentId && deptMap.has(inv.doctor.departmentId)) {
+        deptMap.get(inv.doctor.departmentId)!.revenue += Number(inv.netTotal);
+      }
+    });
+
+    const departmentBreakdown = Array.from(deptMap.values())
+      .filter((d) => d.revenue > 0 || d.patientCount > 0)
+      .sort((a, b) => b.revenue - a.revenue);
+
+    // 4. Compute Payment Method Breakdown
+    const payMethodMap = new Map<string, { method: string; amount: number; count: number }>();
+    payments.forEach((p) => {
+      const m = p.paymentMethod;
+      if (!payMethodMap.has(m)) {
+        payMethodMap.set(m, { method: m, amount: 0, count: 0 });
+      }
+      const item = payMethodMap.get(m)!;
+      item.amount += Number(p.amount);
+      item.count += 1;
+    });
+
+    const paymentMethodBreakdown = Array.from(payMethodMap.values()).sort((a, b) => b.amount - a.amount);
+
+    // 5. Calculate KPI Metrics
+    const totalRevenue = timeline.reduce((acc, t) => acc + t.revenue, 0);
+    const totalCollected = timeline.reduce((acc, t) => acc + t.collected, 0);
+    const totalPending = timeline.reduce((acc, t) => acc + t.pending, 0);
+    const totalPatients = timeline.reduce((acc, t) => acc + t.patientCount, 0);
+
+    const averageRevenuePerPatient = totalPatients > 0 ? Math.round(totalRevenue / totalPatients) : 0;
+    const collectionEfficiency = totalRevenue > 0 ? Math.round((totalCollected / totalRevenue) * 100) : 100;
+
+    return {
+      granularity,
+      dateRange: {
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDate.toISOString().split('T')[0],
+      },
+      kpis: {
+        totalRevenue,
+        totalCollected,
+        totalPending,
+        totalPatients,
+        averageRevenuePerPatient,
+        collectionEfficiency,
+      },
+      timeline,
+      departmentBreakdown,
+      paymentMethodBreakdown,
+    };
+  }
 }

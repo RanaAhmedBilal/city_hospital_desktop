@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { invokeIpc } from '../../lib/ipc';
 import { DailyCollectionSummary } from '../../../shared/types';
+import { AnalyticsGraphsView } from './AnalyticsGraphsView';
 import {
   BarChart3,
   Calendar,
@@ -11,10 +12,11 @@ import {
   Building,
   Sparkles,
   TrendingUp,
+  PieChart,
 } from 'lucide-react';
 
 export const ReportsPage: React.FC = () => {
-  const [activeReportTab, setActiveReportTab] = useState<'collection' | 'doctors' | 'departments' | 'panels' | 'investigations'>('collection');
+  const [activeReportTab, setActiveReportTab] = useState<'analytics' | 'collection' | 'doctors' | 'departments' | 'panels' | 'investigations'>('analytics');
   const [dateRange, setDateRange] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
@@ -28,7 +30,9 @@ export const ReportsPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    loadReportData();
+    if (activeReportTab !== 'analytics') {
+      loadReportData();
+    }
   }, [activeReportTab, dateRange]);
 
   const loadReportData = async () => {
@@ -85,33 +89,36 @@ export const ReportsPage: React.FC = () => {
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface)', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
-            <Calendar size={15} color="var(--text-muted)" />
-            <input
-              type="date"
-              value={dateRange.startDate}
-              onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem' }}
-            />
-            <span style={{ color: 'var(--text-muted)' }}>to</span>
-            <input
-              type="date"
-              value={dateRange.endDate}
-              onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem' }}
-            />
-          </div>
+        {activeReportTab !== 'analytics' && (
+          <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--bg-surface)', padding: '0.35rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-default)' }}>
+              <Calendar size={15} color="var(--text-muted)" />
+              <input
+                type="date"
+                value={dateRange.startDate}
+                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem' }}
+              />
+              <span style={{ color: 'var(--text-muted)' }}>to</span>
+              <input
+                type="date"
+                value={dateRange.endDate}
+                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: '0.85rem' }}
+              />
+            </div>
 
-          <button onClick={loadReportData} className="btn btn-secondary btn-sm">
-            <span>Refresh</span>
-          </button>
-        </div>
+            <button onClick={loadReportData} className="btn btn-secondary btn-sm">
+              <span>Refresh</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Tabs */}
       <div className="scrollable-tabs-row">
         {[
+          { id: 'analytics', label: 'Visual Analytics Graphs', icon: PieChart },
           { id: 'collection', label: 'Daily Collection', icon: DollarSign },
           { id: 'doctors', label: 'Doctor Productivity', icon: Users },
           { id: 'departments', label: 'Department Flow', icon: Building },
@@ -133,6 +140,9 @@ export const ReportsPage: React.FC = () => {
           );
         })}
       </div>
+
+      {/* 0. Visual Analytics Dashboard Tab */}
+      {activeReportTab === 'analytics' && <AnalyticsGraphsView />}
 
       {/* 1. Daily Collection Report */}
       {activeReportTab === 'collection' && (

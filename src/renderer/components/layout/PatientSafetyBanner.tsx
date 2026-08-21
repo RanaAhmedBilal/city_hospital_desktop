@@ -45,15 +45,15 @@ export const PatientSafetyBanner: React.FC = () => {
         </div>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem 1.25rem', fontSize: '0.8rem', color: '#cbd5e1' }}>
-          <div><strong>Age/Gender:</strong> {patient.age ? `${patient.age}y` : '—'} / {patient.gender}</div>
-          <div><strong>Blood:</strong> {BloodGroupLabels[patient.bloodGroup] || patient.bloodGroup}</div>
-          <div><strong>Phone:</strong> {patient.phone}</div>
+          <div><strong>Age/Gender:</strong> {patient.age ? `${patient.age}y` : '—'} / {patient.gender || '—'}</div>
+          <div><strong>Blood:</strong> {patient.bloodGroup ? (BloodGroupLabels[patient.bloodGroup] || patient.bloodGroup) : '—'}</div>
+          <div><strong>Phone:</strong> {patient.phone || '—'}</div>
           <div><strong>NIC:</strong> {patient.nic || '—'}</div>
           {patient.employeeId && <div><strong>Emp ID:</strong> {patient.employeeId}</div>}
           <div><strong>Panel:</strong> {patient.panelClientName || 'Private'}</div>
           {visit && (
             <div style={{ color: 'var(--accent-amber)', fontWeight: 600 }}>
-              <strong>Token #{visit.tokenNumber}</strong> ({visit.visitType.replace('_', ' ')})
+              <strong>Token #{visit.tokenNumber || 1}</strong> ({visit.visitType ? visit.visitType.replace('_', ' ') : 'General Visit'})
             </div>
           )}
         </div>

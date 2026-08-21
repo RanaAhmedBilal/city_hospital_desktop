@@ -199,6 +199,10 @@ export function registerIpcHandlers() {
     return await BillingService.getInvoices(payload || {});
   }, { permission: 'billing:print_slip' });
 
+  handle('billing:get-unbilled-visits', async () => {
+    return await BillingService.getActiveUnbilledVisits();
+  }, { permission: 'billing:create_invoice' });
+
   // ----------------------------------------------------
   // 8. PRINTING & PDF EXPORT
   // ----------------------------------------------------
@@ -230,9 +234,25 @@ export function registerIpcHandlers() {
     return await LabService.getLabCatalog();
   });
 
+  handle('lab:save-catalog-item', async (payload, user) => {
+    return await LabService.saveLabCatalogItem(payload, user.id);
+  }, { permission: 'admin:manage_masters' });
+
+  handle('lab:delete-catalog-item', async (payload, user) => {
+    return await LabService.deleteLabCatalogItem(payload.code, user.id);
+  }, { permission: 'admin:manage_masters' });
+
   handle('lab:order-and-create-bill', async (payload, user) => {
     return await LabService.orderLabTestsAndCreateBill(payload, user.id);
   }, { permission: 'billing:create_charge' });
+
+  handle('lab:get-prescribed-for-visit', async (payload) => {
+    return await LabService.getPrescribedTestsForVisit(payload.visitId);
+  });
+
+  handle('lab:get-history', async (payload) => {
+    return await LabService.getLabHistory(payload?.query);
+  });
 
   // ----------------------------------------------------
   // 10. CONFIGURATION & MASTER DATA
@@ -319,6 +339,10 @@ export function registerIpcHandlers() {
   handle('reports:investigations', async (payload) => {
     return await ReportService.getInvestigationStats(payload || {});
   }, { permission: 'report:view_operational' });
+
+  handle('reports:get-analytics-trends', async (payload) => {
+    return await ReportService.getAnalyticsTrends(payload || {});
+  }, { permission: 'report:view_financial' });
 
   handle('audit:get-logs', async (payload) => {
     return await AuditService.getLogs(payload || {});

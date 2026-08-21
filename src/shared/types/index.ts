@@ -101,6 +101,7 @@ export interface VisitDto {
   patientId: string;
   patient?: PatientDto;
   doctorId: string;
+  doctor?: DoctorDto;
   doctorName?: string;
   doctorSpecialty?: string;
   departmentId: string;

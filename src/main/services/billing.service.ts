@@ -470,7 +470,7 @@ export class BillingService {
   }
 
   /**
-   * Get invoices list with filtering
+   * Get invoices list with query search & filtering
    */
   static async getInvoices(filters: {
     startDate?: string;
@@ -479,6 +479,7 @@ export class BillingService {
     patientId?: string;
     doctorId?: string;
     status?: InvoiceStatus;
+    query?: string;
     limit?: number;
   }): Promise<InvoiceDto[]> {
     const where: any = {};
@@ -492,10 +493,20 @@ export class BillingService {
     if (filters.doctorId) where.doctorId = filters.doctorId;
     if (filters.status) where.status = filters.status;
 
+    if (filters.query && filters.query.trim()) {
+      const q = filters.query.trim();
+      where.OR = [
+        { invoiceNumber: { contains: q, mode: 'insensitive' } },
+        { patient: { fullName: { contains: q, mode: 'insensitive' } } },
+        { patient: { mrn: { contains: q, mode: 'insensitive' } } },
+        { patient: { phone: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
     const invoices = await prisma.invoice.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      take: filters.limit || 100,
+      take: filters.limit || 200,
       include: {
         patient: { include: { panelClient: true } },
         doctor: true,
@@ -507,6 +518,55 @@ export class BillingService {
     });
 
     return invoices.map(this.formatInvoice);
+  }
+
+  /**
+   * Get active encounters/visits that have unbilled charges awaiting checkout
+   */
+  static async getActiveUnbilledVisits(): Promise<any[]> {
+    const visits = await prisma.visit.findMany({
+      where: {
+        status: { notIn: ['COMPLETED', 'CANCELLED'] },
+      },
+      orderBy: { visitDateTime: 'desc' },
+      take: 50,
+      include: {
+        patient: { include: { panelClient: true } },
+        doctor: { include: { department: true } },
+        department: true,
+        charges: {
+          where: { status: { notIn: ['BILLED', 'VOIDED'] } },
+        },
+        invoices: true,
+      },
+    });
+
+    return visits.map((v) => ({
+      id: v.id,
+      visitNumber: v.visitNumber,
+      tokenNumber: v.tokenNumber,
+      visitDateTime: v.visitDateTime.toISOString(),
+      visitType: v.visitType,
+      status: v.status,
+      paymentStatus: v.paymentStatus,
+      patient: {
+        id: v.patient.id,
+        mrn: v.patient.mrn,
+        fullName: v.patient.fullName,
+        phone: v.patient.phone,
+        gender: v.patient.gender,
+        age: v.patient.age,
+        panelClient: v.patient.panelClient ? { name: v.patient.panelClient.name } : null,
+      },
+      doctor: {
+        id: v.doctor.id,
+        name: v.doctor.name,
+        specialty: v.doctor.specialty,
+      },
+      unbilledChargesCount: v.charges.length,
+      unbilledTotal: v.charges.reduce((sum: number, c: any) => sum + Number(c.netAmount), 0),
+      invoicesCount: v.invoices.length,
+    }));
   }
 
   private static formatCharge(c: any): VisitChargeDto {

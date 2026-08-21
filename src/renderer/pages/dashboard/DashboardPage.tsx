@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useActivePatientStore } from '../../stores/activePatientStore';
 import { invokeIpc } from '../../lib/ipc';
-import { VisitDto, DailyCollectionSummary } from '../../../shared/types';
+import { VisitDto, DailyCollectionSummary, DoctorDto, DepartmentDto } from '../../../shared/types';
 import {
   Users,
   Activity,
@@ -14,6 +14,9 @@ import {
   AlertTriangle,
   ArrowUpRight,
   PlusCircle,
+  Search,
+  SlidersHorizontal,
+  RefreshCw,
 } from 'lucide-react';
 
 interface DashboardPageProps {
@@ -25,8 +28,21 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const { setActivePatient } = useActivePatientStore();
 
   const [visits, setVisits] = useState<VisitDto[]>([]);
+  const [doctors, setDoctors] = useState<DoctorDto[]>([]);
+  const [departments, setDepartments] = useState<DepartmentDto[]>([]);
   const [collection, setCollection] = useState<DailyCollectionSummary | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Filters & Sorting for Dashboard Queue Table
+  const [dashSearch, setDashSearch] = useState('');
+  const [dashStatusFilter, setDashStatusFilter] = useState('');
+  const [dashDeptFilter, setDashDeptFilter] = useState('');
+  const [dashDocFilter, setDashDocFilter] = useState('');
+  const [dashSortBy, setDashSortBy] = useState<'TOKEN_ASC' | 'TOKEN_DESC' | 'TIME_ASC' | 'TIME_DESC' | 'PATIENT_NAME'>('TOKEN_ASC');
+
+  // Pagination for Dashboard Queue Table
+  const [dashPage, setDashPage] = useState(1);
+  const [dashPageSize, setDashPageSize] = useState(5);
 
   useEffect(() => {
     loadDashboardData();
@@ -54,6 +70,16 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         );
       }
 
+      // Load Master Dropdowns
+      promises.push(
+        invokeIpc<DoctorDto[]>('config:get-doctors', { activeOnly: true }).then((res) => {
+          if (res.success && res.data) setDoctors(res.data);
+        }),
+        invokeIpc<DepartmentDto[]>('config:get-departments').then((res) => {
+          if (res.success && res.data) setDepartments(res.data);
+        })
+      );
+
       await Promise.all(promises);
     } catch (err) {
       console.error('Failed to load dashboard:', err);
@@ -66,6 +92,54 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const withDoctorCount = visits.filter((v) => v.status === 'VITALS_COMPLETED' || v.status === 'WITH_DOCTOR').length;
   const completedCount = visits.filter((v) => v.status === 'CONSULTATION_COMPLETED' || v.status === 'COMPLETED').length;
   const unbilledCount = visits.filter((v) => v.paymentStatus === 'UNBILLED').length;
+
+  // Filter & Sort Logic for Dashboard Live Queue Table
+  const filteredVisits = visits.filter((v) => {
+    if (dashDeptFilter && v.departmentId !== dashDeptFilter) return false;
+    if (dashDocFilter && v.doctorId !== dashDocFilter) return false;
+    if (dashStatusFilter) {
+      if (dashStatusFilter === 'WAITING' && !(v.status === 'REGISTERED' || v.status === 'WAITING')) return false;
+      if (dashStatusFilter === 'READY_DOCTOR' && v.status !== 'VITALS_COMPLETED') return false;
+      if (dashStatusFilter === 'WITH_DOCTOR' && v.status !== 'WITH_DOCTOR') return false;
+      if (dashStatusFilter === 'CONSULTATION_COMPLETED' && v.status !== 'CONSULTATION_COMPLETED') return false;
+      if (dashStatusFilter === 'COMPLETED' && v.status !== 'COMPLETED') return false;
+    }
+    if (dashSearch) {
+      const q = dashSearch.toLowerCase();
+      const pName = v.patient?.fullName?.toLowerCase() || '';
+      const mrn = v.patient?.mrn?.toLowerCase() || '';
+      const doc = v.doctorName?.toLowerCase() || '';
+      const dept = v.departmentName?.toLowerCase() || '';
+      const tok = String(v.tokenNumber);
+      return pName.includes(q) || mrn.includes(q) || doc.includes(q) || dept.includes(q) || tok.includes(q);
+    }
+    return true;
+  });
+
+  const sortedVisits = [...filteredVisits].sort((a, b) => {
+    if (dashSortBy === 'TOKEN_ASC') return a.tokenNumber - b.tokenNumber;
+    if (dashSortBy === 'TOKEN_DESC') return b.tokenNumber - a.tokenNumber;
+    if (dashSortBy === 'TIME_ASC') return new Date(a.visitDateTime).getTime() - new Date(b.visitDateTime).getTime();
+    if (dashSortBy === 'TIME_DESC') return new Date(b.visitDateTime).getTime() - new Date(a.visitDateTime).getTime();
+    if (dashSortBy === 'PATIENT_NAME') return (a.patient?.fullName || '').localeCompare(b.patient?.fullName || '');
+    return 0;
+  });
+
+  // Pagination Math
+  const totalItems = sortedVisits.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / dashPageSize));
+  const startItemIdx = totalItems === 0 ? 0 : (dashPage - 1) * dashPageSize + 1;
+  const endItemIdx = Math.min(dashPage * dashPageSize, totalItems);
+  const paginatedVisits = sortedVisits.slice((dashPage - 1) * dashPageSize, dashPage * dashPageSize);
+
+  const resetDashboardFilters = () => {
+    setDashSearch('');
+    setDashStatusFilter('');
+    setDashDeptFilter('');
+    setDashDocFilter('');
+    setDashSortBy('TOKEN_ASC');
+    setDashPage(1);
+  };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -177,20 +251,113 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
         </div>
       </div>
 
-      {/* Live Hospital OPD Queue Grid */}
-      <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      {/* Live Hospital OPD Queue Grid with Filters, Sorting, and Pagination */}
+      <div className="card" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
           <div>
             <h3 style={{ fontSize: '1.1rem' }}>Live Patient Encounters & Queue</h3>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Click any encounter to load clinical safety profile and take action</p>
           </div>
-          <button onClick={loadDashboardData} className="btn btn-secondary btn-sm">
-            Refresh Status
-          </button>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+            <button onClick={resetDashboardFilters} className="btn btn-secondary btn-sm" style={{ fontSize: '0.8rem' }}>
+              Reset Filters
+            </button>
+            <button onClick={loadDashboardData} className="btn btn-secondary btn-sm">
+              <RefreshCw size={14} className={loading ? 'spin' : ''} />
+              <span>Refresh Status</span>
+            </button>
+          </div>
         </div>
 
+        {/* Dashboard Queue Filter Controls Bar */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.6rem', alignItems: 'center', background: 'var(--bg-subtle)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+          {/* Instant Search */}
+          <div style={{ position: 'relative' }}>
+            <Search size={14} style={{ position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <input
+              type="text"
+              className="input"
+              style={{ paddingLeft: '1.8rem', fontSize: '0.78rem' }}
+              placeholder="Search Name, MRN, Token..."
+              value={dashSearch}
+              onChange={(e) => {
+                setDashSearch(e.target.value);
+                setDashPage(1);
+              }}
+            />
+          </div>
+
+          {/* Department Filter */}
+          <select
+            className="input"
+            style={{ fontSize: '0.78rem', padding: '0.3rem 0.5rem' }}
+            value={dashDeptFilter}
+            onChange={(e) => {
+              setDashDeptFilter(e.target.value);
+              setDashPage(1);
+            }}
+          >
+            <option value="">All Departments</option>
+            {departments.map((dept) => (
+              <option key={dept.id} value={dept.id}>{dept.name}</option>
+            ))}
+          </select>
+
+          {/* Doctor Filter */}
+          <select
+            className="input"
+            style={{ fontSize: '0.78rem', padding: '0.3rem 0.5rem' }}
+            value={dashDocFilter}
+            onChange={(e) => {
+              setDashDocFilter(e.target.value);
+              setDashPage(1);
+            }}
+          >
+            <option value="">All Doctors</option>
+            {doctors.map((doc) => (
+              <option key={doc.id} value={doc.id}>{doc.name}</option>
+            ))}
+          </select>
+
+          {/* Status Filter */}
+          <select
+            className="input"
+            style={{ fontSize: '0.78rem', padding: '0.3rem 0.5rem' }}
+            value={dashStatusFilter}
+            onChange={(e) => {
+              setDashStatusFilter(e.target.value);
+              setDashPage(1);
+            }}
+          >
+            <option value="">All Stages</option>
+            <option value="WAITING">Waiting Vitals</option>
+            <option value="READY_DOCTOR">Ready for Doctor</option>
+            <option value="WITH_DOCTOR">With Doctor</option>
+            <option value="CONSULTATION_COMPLETED">Consultation Done</option>
+            <option value="COMPLETED">Completed</option>
+          </select>
+
+          {/* Sorting */}
+          <select
+            className="input"
+            style={{ fontSize: '0.78rem', padding: '0.3rem 0.5rem' }}
+            value={dashSortBy}
+            onChange={(e) => {
+              setDashSortBy(e.target.value as any);
+              setDashPage(1);
+            }}
+          >
+            <option value="TOKEN_ASC">Token (Low → High)</option>
+            <option value="TOKEN_DESC">Token (High → Low)</option>
+            <option value="TIME_ASC">Time (Oldest First)</option>
+            <option value="TIME_DESC">Time (Newest First)</option>
+            <option value="PATIENT_NAME">Patient Name (A-Z)</option>
+          </select>
+        </div>
+
+        {/* Table Content */}
         <div className="table-container">
-          <table className="table">
+          <table className="table" style={{ width: '100%', fontSize: '0.85rem' }}>
             <thead>
               <tr>
                 <th>Token</th>
@@ -204,8 +371,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               </tr>
             </thead>
             <tbody>
-              {visits.length > 0 ? (
-                visits.map((v) => {
+              {paginatedVisits.length > 0 ? (
+                paginatedVisits.map((v) => {
                   let statusBadge = <span className="badge badge-slate">{v.status}</span>;
                   if (v.status === 'REGISTERED' || v.status === 'WAITING') statusBadge = <span className="badge badge-amber">Waiting Vitals</span>;
                   if (v.status === 'VITALS_COMPLETED') statusBadge = <span className="badge badge-blue">Ready for Doctor</span>;
@@ -250,13 +417,83 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
               ) : (
                 <tr>
                   <td colSpan={8} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem' }}>
-                    {loading ? 'Loading today OPD records...' : 'No patient visits registered today yet.'}
+                    {loading ? 'Loading today OPD records...' : 'No patient encounters found for current filter criteria.'}
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {/* Dashboard Live Queue Pagination Footer */}
+        {sortedVisits.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '0.75rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+              <span>
+                Showing <strong>{startItemIdx}</strong> to <strong>{endItemIdx}</strong> of <strong>{totalItems}</strong> encounters
+              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                <span>Per page:</span>
+                <select
+                  className="input"
+                  style={{ padding: '0.2rem 0.4rem', fontSize: '0.78rem' }}
+                  value={dashPageSize}
+                  onChange={(e) => {
+                    setDashPageSize(Number(e.target.value));
+                    setDashPage(1);
+                  }}
+                >
+                  <option value={5}>5</option>
+                  <option value={10}>10</option>
+                  <option value={20}>20</option>
+                  <option value={50}>50</option>
+                </select>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <button
+                disabled={dashPage <= 1}
+                onClick={() => setDashPage(1)}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                First
+              </button>
+
+              <button
+                disabled={dashPage <= 1}
+                onClick={() => setDashPage((p) => Math.max(1, p - 1))}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                Prev
+              </button>
+
+              <span style={{ fontSize: '0.8rem', padding: '0 0.4rem', color: 'var(--text-primary)', fontWeight: 600 }}>
+                Page <strong>{dashPage}</strong> of <strong>{totalPages}</strong>
+              </span>
+
+              <button
+                disabled={dashPage >= totalPages}
+                onClick={() => setDashPage((p) => Math.min(totalPages, p + 1))}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                Next
+              </button>
+
+              <button
+                disabled={dashPage >= totalPages}
+                onClick={() => setDashPage(totalPages)}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.25rem 0.6rem', fontSize: '0.75rem' }}
+              >
+                Last
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
