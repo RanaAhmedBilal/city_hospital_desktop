@@ -32,10 +32,16 @@ export class VitalsService {
     }
 
     return await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({ where: { id: data.patientId } });
+      if (!patient || !patient.isActive) {
+        throw new Error('Patient is inactive or deactivated. Cannot record vitals for an inactive patient.');
+      }
+
       const vitals = await tx.visitVitals.create({
         data: {
           visitId: data.visitId,
           patientId: data.patientId,
+
           temperature: data.temperature != null ? data.temperature : null,
           pulse: data.pulse != null ? data.pulse : null,
           respiratoryRate: data.respiratoryRate != null ? data.respiratoryRate : null,

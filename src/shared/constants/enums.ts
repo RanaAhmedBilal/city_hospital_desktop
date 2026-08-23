@@ -136,3 +136,18 @@ export enum AdjustmentType {
   WRITE_OFF = 'WRITE_OFF',
   VOID = 'VOID',
 }
+
+export enum AllergySeverity {
+  MILD = 'MILD',
+  MODERATE = 'MODERATE',
+  SEVERE = 'SEVERE',
+  ANAPHYLACTIC = 'ANAPHYLACTIC',
+}
+
+export enum AllergyType {
+  DRUG = 'DRUG',
+  FOOD = 'FOOD',
+  ENVIRONMENTAL = 'ENVIRONMENTAL',
+  OTHER = 'OTHER',
+}
+

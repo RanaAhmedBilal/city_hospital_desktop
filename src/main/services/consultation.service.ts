@@ -22,9 +22,15 @@ export class ConsultationService {
     isFinalized?: boolean;
   }, authUserId: string): Promise<ConsultationDto> {
     return await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({ where: { id: data.patientId } });
+      if (!patient || !patient.isActive) {
+        throw new Error('Patient is inactive or deactivated. Cannot save consultation for an inactive patient.');
+      }
+
       let consultation = await tx.consultation.findFirst({
         where: { visitId: data.visitId },
       });
+
 
       const isFinalized = Boolean(data.isFinalized);
       const status = isFinalized ? ClinicalRecordStatus.FINALIZED : ClinicalRecordStatus.DRAFT;
@@ -50,8 +56,8 @@ export class ConsultationService {
           include: { doctor: true },
         });
       } else {
-        if (consultation.status === ClinicalRecordStatus.FINALIZED) {
-          throw new Error('This consultation is already finalized. Please use the amendment workflow to modify clinical notes.');
+        if (consultation.status === ClinicalRecordStatus.FINALIZED || consultation.status === ClinicalRecordStatus.AMENDED) {
+          throw new Error('A finalized or amended consultation already exists for this visit. Direct overwriting of finalized clinical records is prohibited. Please use the consultation amendment workflow.');
         }
 
         consultation = await tx.consultation.update({
@@ -107,6 +113,10 @@ export class ConsultationService {
     advice?: string | null;
     followUpDate?: string | null;
   }, authUserId: string): Promise<ConsultationDto> {
+    if (!data.reason || !data.reason.trim() || data.reason.trim().length < 5) {
+      throw new Error('An explicit amendment reason (minimum 5 characters) is required to amend a finalized clinical consultation.');
+    }
+
     return await prisma.$transaction(async (tx) => {
       const original = await tx.consultation.findUnique({
         where: { id: data.consultationId },
@@ -115,6 +125,11 @@ export class ConsultationService {
       if (!original) {
         throw new Error('Consultation record not found.');
       }
+
+      if (original.status === ClinicalRecordStatus.DRAFT) {
+        throw new Error('This consultation is currently in DRAFT status. Draft consultations should be finalized directly rather than amended.');
+      }
+
 
       // 1. Create amendment record capturing historical snapshot
       await tx.consultationAmendment.create({

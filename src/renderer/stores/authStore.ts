@@ -13,34 +13,26 @@ interface AuthState {
 }
 
 export const useAuthStore = create<AuthState>((set, get) => {
-  // Initialize from localStorage
-  const storedUser = localStorage.getItem('city_hospital_user');
-  const storedToken = localStorage.getItem('city_hospital_auth_token');
-  let parsedUser: AuthUser | null = null;
-  try {
-    if (storedUser) parsedUser = JSON.parse(storedUser);
-  } catch (e) {}
+  // Initialize from secure preload in-memory state if available
+  // @ts-ignore
+  const activeUser = window.api?.getCurrentUser ? window.api.getCurrentUser() : null;
+  // @ts-ignore
+  const activeToken = window.api?.getToken ? window.api.getToken() : null;
 
   return {
-    user: parsedUser,
-    token: storedToken,
-    isAuthenticated: !!(parsedUser && storedToken),
+    user: activeUser,
+    token: activeToken,
+    isAuthenticated: !!(activeUser && activeToken),
 
     setUser: (user, token) => {
       if (user && token) {
-        localStorage.setItem('city_hospital_user', JSON.stringify(user));
-        localStorage.setItem('city_hospital_auth_token', token);
         set({ user, token, isAuthenticated: true });
       } else {
-        localStorage.removeItem('city_hospital_user');
-        localStorage.removeItem('city_hospital_auth_token');
         set({ user: null, token: null, isAuthenticated: false });
       }
     },
 
     logout: () => {
-      localStorage.removeItem('city_hospital_user');
-      localStorage.removeItem('city_hospital_auth_token');
       // @ts-ignore
       if (window.api?.logout) {
         // @ts-ignore

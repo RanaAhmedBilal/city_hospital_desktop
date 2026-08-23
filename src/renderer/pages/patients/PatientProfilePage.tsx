@@ -122,15 +122,15 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
       </div>
 
       {/* Patient Master Demographics Card */}
-      <div className="card" style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9) 0%, rgba(15, 23, 42, 0.9) 100%)' }}>
+      <div className="card" style={{ background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.95) 0%, rgba(15, 23, 42, 0.95) 100%)', color: '#f8fafc' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <h2 style={{ fontSize: '1.5rem', color: '#f8fafc' }}>{patient.fullName}</h2>
+              <h2 style={{ fontSize: '1.5rem', color: '#ffffff', fontWeight: 800 }}>{patient.fullName}</h2>
               <span className="badge badge-blue">MRN: {patient.mrn}</span>
             </div>
             {patient.guardianName && (
-              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '2px' }}>
+              <div style={{ fontSize: '0.85rem', color: '#cbd5e1', marginTop: '2px' }}>
                 Guardian: {patient.guardianName}
               </div>
             )}
@@ -138,24 +138,24 @@ export const PatientProfilePage: React.FC<PatientProfilePageProps> = ({
 
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem 1.5rem', fontSize: '0.85rem' }}>
             <div>
-              <div style={{ color: 'var(--text-muted)' }}>Age / Gender</div>
-              <div style={{ fontWeight: 700 }}>{patient.age ? `${patient.age} yrs` : '—'} / {patient.gender}</div>
+              <div style={{ color: '#94a3b8', fontWeight: 500 }}>Age / Gender</div>
+              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{patient.age ? `${patient.age} yrs` : '—'} / {patient.gender}</div>
             </div>
             <div>
-              <div style={{ color: 'var(--text-muted)' }}>Blood Group</div>
-              <div style={{ fontWeight: 700 }}>{(patient.bloodGroup && BloodGroupLabels[patient.bloodGroup as BloodGroup]) || patient.bloodGroup || '—'}</div>
+              <div style={{ color: '#94a3b8', fontWeight: 500 }}>Blood Group</div>
+              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{(patient.bloodGroup && BloodGroupLabels[patient.bloodGroup as BloodGroup]) || patient.bloodGroup || '—'}</div>
             </div>
             <div>
-              <div style={{ color: 'var(--text-muted)' }}>Phone</div>
-              <div style={{ fontWeight: 700 }}>{patient.phone}</div>
+              <div style={{ color: '#94a3b8', fontWeight: 500 }}>Phone</div>
+              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{patient.phone}</div>
             </div>
             <div>
-              <div style={{ color: 'var(--text-muted)' }}>NIC / CNIC</div>
-              <div style={{ fontWeight: 700 }}>{patient.nic || '—'}</div>
+              <div style={{ color: '#94a3b8', fontWeight: 500 }}>NIC / CNIC</div>
+              <div style={{ fontWeight: 700, color: '#f8fafc' }}>{patient.nic || '—'}</div>
             </div>
             <div>
-              <div style={{ color: 'var(--text-muted)' }}>Panel / Corporate</div>
-              <div style={{ fontWeight: 700, color: 'var(--primary-400)' }}>
+              <div style={{ color: '#94a3b8', fontWeight: 500 }}>Panel / Corporate</div>
+              <div style={{ fontWeight: 700, color: '#2dd4bf' }}>
                 {patient.panelClient?.name || 'Private / Self Pay'}
               </div>
             </div>

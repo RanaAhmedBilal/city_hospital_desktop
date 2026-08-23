@@ -15,7 +15,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "npm run build:electron && node dist-electron/main/database/seed/seed.js",
     "db:seed": "npm run build:electron && node dist-electron/main/database/seed/seed.js",
-    "test:db": "node test-db-conn.js"
+    "test:db": "node test-db-conn.js",
+    "test": "vitest run --config vitest.config.ts",
+    "test:e2e": "npm run build:electron && node dist-electron/main/test/test-e2e.js"
   },
   "keywords": [
     "hospital",
@@ -54,6 +56,7 @@
     "prisma": "^6.4.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.7.3",
-    "vite": "^6.1.0"
+    "vite": "^6.1.0",
+    "vitest": "^4.1.11"
   }
 }

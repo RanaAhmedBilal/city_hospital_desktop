@@ -105,6 +105,20 @@ enum BloodGroup {
   UNKNOWN
 }
 
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+  ANAPHYLACTIC
+}
+
+enum AllergyType {
+  DRUG
+  FOOD
+  ENVIRONMENTAL
+  OTHER
+}
+
 model PanelClient {
   id                 String    @id @default(uuid())
   name               String
@@ -156,6 +170,8 @@ model Patient {
   visits                   Visit[]
   invoices                 Invoice[]
   payments                 Payment[]
+  allergies                PatientAllergy[]
+  labOrders                LabOrder[]
 
   @@index([mrn])
   @@index([fullName])
@@ -164,6 +180,24 @@ model Patient {
   @@index([employeeId])
   @@map("patients")
 }
+
+model PatientAllergy {
+  id           String          @id @default(uuid())
+  patientId    String
+  allergenName String
+  allergenType AllergyType     @default(DRUG)
+  severity     AllergySeverity @default(MODERATE)
+  reaction     String?
+  recordedAt   DateTime        @default(now())
+  recordedById String?
+
+  patient      Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+
+  @@index([patientId])
+  @@index([allergenName])
+  @@map("patient_allergies")
+}
+
 
 // ----------------------------------------------------
 // 3. DOCTORS & DEPARTMENTS
@@ -206,6 +240,7 @@ model Doctor {
   consultations   Consultation[]
   prescriptions   Prescription[]
   invoices        Invoice[]
+  labOrders       LabOrder[]
 
   @@map("doctors")
 }
@@ -264,6 +299,7 @@ model Visit {
   prescriptions  Prescription[]
   charges        VisitCharge[]
   invoices       Invoice[]
+  labOrders      LabOrder[]
 
   @@index([patientId])
   @@index([doctorId])
@@ -393,6 +429,105 @@ model Investigation {
   @@map("investigations")
 }
 
+model LabCatalogItem {
+  id            String   @id @default(uuid())
+  code          String   @unique
+  name          String
+  category      String   @default("General Pathology")
+  defaultFee    Decimal  @default(0.00) @db.Decimal(10, 2)
+  sampleType    String   @default("Whole Blood / Serum")
+  containerType String   @default("Purple EDTA / Red Gel")
+  tatHours      Int      @default(4)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([code])
+  @@index([category])
+  @@map("lab_catalog_items")
+}
+
+enum LabOrderStatus {
+  ORDERED
+  SPECIMEN_COLLECTED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum SpecimenStatus {
+  PENDING
+  COLLECTED
+  RECEIVED
+  REJECTED
+}
+
+model LabOrder {
+  id             String         @id @default(uuid())
+  orderNo        String         @unique // e.g. "LBO-2026-000001"
+  visitId        String
+  patientId      String
+  doctorId       String?
+  prescriptionId String?
+  invoiceId      String?
+  status         LabOrderStatus @default(ORDERED)
+  notes          String?        @db.Text
+  createdById    String
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  visit        Visit         @relation(fields: [visitId], references: [id])
+  patient      Patient       @relation(fields: [patientId], references: [id])
+  doctor       Doctor?       @relation(fields: [doctorId], references: [id])
+  prescription Prescription? @relation(fields: [prescriptionId], references: [id])
+  invoice      Invoice?      @relation(fields: [invoiceId], references: [id])
+
+  specimens    LabSpecimen[]
+  items        LabOrderItem[]
+
+  @@index([visitId])
+  @@index([patientId])
+  @@index([prescriptionId])
+  @@index([invoiceId])
+  @@map("lab_orders")
+}
+
+model LabSpecimen {
+  id            String         @id @default(uuid())
+  labOrderId    String
+  barcode       String         @unique // e.g. "SMP-1724401234567"
+  specimenType  String         // Whole Blood, Serum, Urine, etc.
+  containerType String?        // Purple EDTA, Red Gel, etc.
+  status        SpecimenStatus @default(COLLECTED)
+  collectedAt   DateTime       @default(now())
+  collectedById String?
+  notes         String?
+
+  labOrder      LabOrder       @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([labOrderId])
+  @@index([barcode])
+  @@map("lab_specimens")
+}
+
+model LabOrderItem {
+  id             String   @id @default(uuid())
+  labOrderId     String
+  testCode       String
+  testName       String
+  category       String?
+  fee            Decimal  @db.Decimal(10, 2)
+  status         String   @default("PENDING")
+  resultValue    String?  @db.Text
+  referenceRange String?
+  unit           String?
+
+  labOrder       LabOrder @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+
+  @@index([labOrderId])
+  @@map("lab_order_items")
+}
+
 model Prescription {
   id              String                      @id @default(uuid())
   prescriptionNo  String                      @unique // e.g. "RX-2026-000001"
@@ -416,6 +551,7 @@ model Prescription {
   items           PrescriptionItem[]
   investigations  PrescriptionInvestigation[]
   amendments      PrescriptionAmendment[]
+  labOrders       LabOrder[]
 
   @@index([visitId])
   @@index([patientId])
@@ -603,6 +739,7 @@ model Invoice {
   items           InvoiceItem[]
   payments        Payment[]
   adjustments     FinancialAdjustment[]
+  labOrders       LabOrder[]
 
   @@index([visitId])
   @@index([patientId])

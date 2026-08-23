@@ -1,5 +1,6 @@
 import { HospitalSettingDto, PatientDto, VisitDto, VisitVitalsDto } from '../../../shared/types';
 import { BloodGroupLabels, VisitTypeLabels } from '../../../shared/constants/enums';
+import { escapeHtml, escapeHtmlOrDash } from '../utils/escapeHtml';
 
 export function renderVitalsSheetHtml(params: {
   hospital: HospitalSettingDto;
@@ -11,24 +12,24 @@ export function renderVitalsSheetHtml(params: {
 
   // Format Dates
   const visitDate = visit.visitDateTime ? new Date(visit.visitDateTime) : new Date();
-  const formattedDate = visitDate.toLocaleDateString('en-GB', {
+  const formattedDate = escapeHtml(visitDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-  const formattedTime = visitDate.toLocaleTimeString('en-US', {
+  }));
+  const formattedTime = escapeHtml(visitDate.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
-  });
+  }));
 
-  const bloodGroupLabel = patient.bloodGroup && (patient.bloodGroup as any) in BloodGroupLabels
+  const bloodGroupLabel = escapeHtml(patient.bloodGroup && (patient.bloodGroup as any) in BloodGroupLabels
     ? BloodGroupLabels[patient.bloodGroup as keyof typeof BloodGroupLabels]
-    : patient.bloodGroup || '—';
+    : patient.bloodGroup || '—');
 
-  const visitTypeLabel = visit.visitType && (visit.visitType as any) in VisitTypeLabels
+  const visitTypeLabel = escapeHtml(visit.visitType && (visit.visitType as any) in VisitTypeLabels
     ? VisitTypeLabels[visit.visitType as keyof typeof VisitTypeLabels]
-    : visit.visitType || 'New Consultation';
+    : visit.visitType || 'New Consultation');
 
   // Blood Pressure Categorization
   let bpCategory = '';
@@ -71,7 +72,7 @@ export function renderVitalsSheetHtml(params: {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>OPD Triage & Vitals Slip - Token #${visit.tokenNumber} - ${patient.fullName}</title>
+  <title>OPD Triage & Vitals Slip - Token #${escapeHtml(visit.tokenNumber)} - ${escapeHtml(patient.fullName)}</title>
   <style>
     * {
       box-sizing: border-box;
@@ -82,65 +83,31 @@ export function renderVitalsSheetHtml(params: {
       margin: 0;
       padding: 0;
       font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
-      color: #0f172a;
-      font-size: 10pt;
+      color: #1e293b;
+      background: #ffffff;
+      font-size: 9.5pt;
       line-height: 1.35;
     }
-
-    @media screen {
-      body {
-        background-color: #ffffff;
-        padding: 0;
-        margin: 0;
-      }
-      .a4-sheet {
-        width: 100%;
-        min-height: 265mm;
-        display: flex;
-        flex-direction: column;
-        background: #ffffff;
-        padding: 12mm 15mm;
-        box-sizing: border-box;
-        margin: 0 auto;
-      }
+    .page-container {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 12mm 14mm;
+      margin: 0 auto;
+      background: #ffffff;
+      display: flex;
+      flex-direction: column;
     }
 
-    @media print {
-      @page {
-        size: A4 portrait;
-        margin: 10mm 14mm 10mm 14mm;
-      }
-      body {
-        background: #ffffff;
-        padding: 0;
-        margin: 0;
-      }
-      .a4-sheet {
-        width: 100%;
-        min-height: 270mm;
-        display: flex;
-        flex-direction: column;
-        padding: 0;
-        box-shadow: none;
-        border-radius: 0;
-        margin: 0;
-      }
-    }
-
-    /* ---------------------------------------------------- */
-    /* 1. HEADER (LEFT-ALIGNED HOSPITAL BRANDING) */
-    /* ---------------------------------------------------- */
+    /* Header & Branding */
     .header-container {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
       border-bottom: 2.5px solid #0f766e;
       padding-bottom: 10px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .header-left {
-      display: flex;
-      flex-direction: column;
       max-width: 65%;
     }
     .hospital-brand {
@@ -150,88 +117,78 @@ export function renderVitalsSheetHtml(params: {
       margin-bottom: 4px;
     }
     .hospital-logo {
-      width: 42px;
-      height: 42px;
-      background: #0f766e;
-      color: #ffffff;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 22pt;
-      font-weight: 900;
+      font-size: 26pt;
+      line-height: 1;
     }
     .hospital-name {
-      margin: 0;
-      color: #0f766e;
-      font-size: 19pt;
+      font-size: 17pt;
       font-weight: 800;
-      letter-spacing: -0.4px;
-      line-height: 1.15;
+      color: #0f766e;
+      margin: 0;
+      letter-spacing: -0.3px;
     }
     .hospital-tagline {
+      font-size: 8.5pt;
       color: #475569;
-      font-size: 9pt;
-      font-weight: 600;
-      letter-spacing: 0.2px;
-      margin-top: 1px;
+      font-style: italic;
     }
     .hospital-contact-details {
-      color: #334155;
-      font-size: 8.5pt;
-      line-height: 1.35;
+      font-size: 8pt;
+      color: #64748b;
       margin-top: 4px;
+      line-height: 1.3;
     }
 
+    /* Token Badge */
     .header-right {
-      display: flex;
-      flex-direction: column;
-      align-items: flex-end;
       text-align: right;
     }
     .token-box {
-      background: #f0fdfa;
-      border: 2px solid #0f766e;
+      background: #0f766e;
+      color: #ffffff;
       border-radius: 8px;
-      padding: 6px 14px;
+      padding: 8px 16px;
       text-align: center;
-      min-width: 135px;
-      box-shadow: 0 2px 4px rgba(15, 118, 110, 0.1);
+      min-width: 140px;
+      box-shadow: 0 2px 4px rgba(15, 118, 110, 0.2);
     }
     .token-label {
       font-size: 7.5pt;
-      font-weight: 800;
-      color: #0f766e;
-      letter-spacing: 0.08em;
+      font-weight: 700;
+      letter-spacing: 1px;
       text-transform: uppercase;
+      opacity: 0.9;
     }
     .token-number {
       font-size: 24pt;
       font-weight: 900;
-      color: #0f766e;
-      line-height: 1;
-      margin: 2px 0;
+      line-height: 1.1;
+      margin: 1px 0;
     }
     .token-meta {
-      font-size: 7.8pt;
-      color: #64748b;
-      margin-top: 3px;
-      line-height: 1.3;
+      font-size: 7.5pt;
+      opacity: 0.95;
+    }
+    .badge-priority {
+      background: #f59e0b;
+      color: #ffffff;
+      padding: 1px 5px;
+      border-radius: 3px;
+      font-weight: 800;
+      font-size: 7pt;
+      text-transform: uppercase;
     }
 
-    /* ---------------------------------------------------- */
-    /* 2. PATIENT & ENCOUNTER BANNER */
-    /* ---------------------------------------------------- */
+    /* Patient Demographics Banner */
     .patient-banner {
-      background: #f8fafc;
-      border: 1.5px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 14px;
+      background: #f0fdfa;
+      border: 1px solid #ccfbf1;
+      border-radius: 6px;
+      padding: 9px 12px;
       display: grid;
       grid-template-columns: repeat(4, 1fr);
-      gap: 8px 14px;
-      font-size: 9.5pt;
+      gap: 6px 12px;
+      margin-bottom: 12px;
     }
     .patient-field {
       display: flex;
@@ -240,42 +197,32 @@ export function renderVitalsSheetHtml(params: {
     .field-label {
       font-size: 7pt;
       font-weight: 700;
-      color: #64748b;
+      color: #0f766e;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      margin-bottom: 1px;
+      letter-spacing: 0.4px;
     }
     .field-value {
-      font-weight: 700;
+      font-size: 9pt;
+      font-weight: 600;
       color: #0f172a;
     }
-    .badge-priority {
-      display: inline-block;
-      padding: 1px 6px;
-      border-radius: 4px;
-      font-size: 7.5pt;
-      font-weight: 800;
-      background: #e0f2fe;
-      color: #0369a1;
-      text-transform: uppercase;
-    }
 
-    /* ---------------------------------------------------- */
-    /* 3. VITALS ASSESSMENT CARDS */
-    /* ---------------------------------------------------- */
+    /* Section Headers */
     .section-title {
-      font-size: 10.5pt;
+      font-size: 10pt;
       font-weight: 800;
       color: #0f766e;
       text-transform: uppercase;
-      letter-spacing: 0.05em;
-      border-bottom: 1.5px solid #ccfbf1;
-      padding-bottom: 4px;
+      letter-spacing: 0.5px;
+      border-bottom: 1.5px solid #0f766e;
+      padding-bottom: 3px;
       margin-bottom: 10px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
+
+    /* Vitals Assessment Cards Grid */
     .vitals-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -283,116 +230,110 @@ export function renderVitalsSheetHtml(params: {
       margin-bottom: 14px;
     }
     .vital-card {
-      border: 1.5px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 12px;
       background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-radius: 6px;
+      padding: 8px 10px;
+      text-align: center;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.03);
     }
     .vital-header {
       font-size: 7.5pt;
       font-weight: 700;
-      color: #64748b;
+      color: #475569;
       text-transform: uppercase;
       margin-bottom: 3px;
     }
     .vital-value {
-      font-size: 15pt;
+      font-size: 14pt;
       font-weight: 800;
       color: #0f172a;
       line-height: 1.1;
     }
     .vital-unit {
-      font-size: 9pt;
-      font-weight: 500;
+      font-size: 7.5pt;
+      font-weight: 600;
       color: #64748b;
-      margin-left: 2px;
     }
     .vital-subtext {
-      font-size: 7.8pt;
+      font-size: 7.2pt;
       font-weight: 600;
-      color: #0f766e;
       margin-top: 3px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      display: inline-block;
     }
-    .vital-subtext.elevated { color: #d97706; }
-    .vital-subtext.critical { color: #dc2626; font-weight: 800; }
-    .vital-subtext.warning { color: #ea580c; }
+    .vital-subtext.normal { background: #dcfce7; color: #15803d; }
+    .vital-subtext.warning { background: #fef3c7; color: #b45309; }
+    .vital-subtext.elevated { background: #ffedd5; color: #c2410c; }
+    .vital-subtext.critical { background: #ffe4e6; color: #be123c; font-weight: 800; }
 
-    /* ---------------------------------------------------- */
-    /* 4. BILLING & TOKEN STATUS NOTICE */
-    /* ---------------------------------------------------- */
+    /* Billing Notice Box */
     .billing-notice-box {
-      background: #f0fdf4;
-      border: 1.5px solid #86efac;
-      border-radius: 8px;
-      padding: 10px 14px;
-      margin-bottom: 16px;
+      background: #f8fafc;
+      border: 1px dashed #94a3b8;
+      border-radius: 6px;
+      padding: 8px 12px;
+      margin-bottom: 12px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
     .billing-notice-title {
-      font-size: 9pt;
-      font-weight: 800;
-      color: #166534;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
+      font-size: 8.5pt;
+      font-weight: 700;
+      color: #334155;
     }
     .billing-notice-desc {
-      font-size: 8.5pt;
-      color: #15803d;
-      margin-top: 2px;
+      font-size: 7.8pt;
+      color: #64748b;
     }
     .billing-status-badge {
+      font-size: 8pt;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 4px;
       background: #fef3c7;
       color: #b45309;
       border: 1px solid #fde68a;
-      font-weight: 800;
-      font-size: 8.5pt;
-      padding: 4px 10px;
-      border-radius: 6px;
-      text-transform: uppercase;
     }
     .billing-status-badge.paid {
       background: #dcfce7;
       color: #15803d;
-      border-color: #86efac;
+      border-color: #bbf7d0;
     }
 
-    /* ---------------------------------------------------- */
-    /* 5. FOOTER & STAMP */
-    /* ---------------------------------------------------- */
+    /* Footer & Signatures */
     .footer-container {
-      margin-top: auto;
+      border-top: 1px solid #cbd5e1;
+      padding-top: 8px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      border-top: 2px solid #0f766e;
-      padding-top: 10px;
-      font-size: 8pt;
+      font-size: 7.5pt;
       color: #64748b;
     }
     .signature-box {
       text-align: center;
-      width: 220px;
+      min-width: 160px;
     }
     .signature-line {
-      border-top: 1.5px solid #334155;
-      margin-top: 40px;
-      padding-top: 4px;
+      border-top: 1.5px solid #475569;
+      padding-top: 3px;
       font-weight: 700;
-      color: #0f172a;
-      font-size: 8.5pt;
+      color: #1e293b;
+      margin-top: 25px;
     }
     .hospital-seal {
-      font-size: 7.5pt;
+      font-size: 7pt;
       color: #94a3b8;
-      margin-top: 2px;
+      font-style: italic;
     }
   </style>
 </head>
 <body>
 
-<div class="a4-sheet">
+<div class="page-container">
 
   <!-- ==================================================== -->
   <!-- 1. HOSPITAL HEADER (LEFT-ALIGNED BRANDING) -->
@@ -402,23 +343,23 @@ export function renderVitalsSheetHtml(params: {
       <div class="hospital-brand">
         <div class="hospital-logo">🏥</div>
         <div>
-          <h1 class="hospital-name">${hospital.hospitalName || 'CITY HOSPITAL'}</h1>
-          <div class="hospital-tagline">${hospital.tagline || 'Center for Medical Excellence & Compassionate Care'}</div>
+          <h1 class="hospital-name">${escapeHtml(hospital.hospitalName || 'CITY HOSPITAL')}</h1>
+          <div class="hospital-tagline">${escapeHtml(hospital.tagline || 'Center for Medical Excellence & Compassionate Care')}</div>
         </div>
       </div>
       <div class="hospital-contact-details">
-        <div><strong>Address:</strong> ${hospital.address}, ${hospital.city}</div>
-        <div><strong>Helpline:</strong> ${hospital.phone} | <strong>Email:</strong> ${hospital.email}</div>
-        ${hospital.taxNumber ? `<div><strong>Reg / NTN:</strong> ${hospital.taxNumber}</div>` : ''}
+        <div><strong>Address:</strong> ${escapeHtml(hospital.address)}, ${escapeHtml(hospital.city)}</div>
+        <div><strong>Helpline:</strong> ${escapeHtml(hospital.phone)} | <strong>Email:</strong> ${escapeHtml(hospital.email)}</div>
+        ${hospital.taxNumber ? `<div><strong>Reg / NTN:</strong> ${escapeHtml(hospital.taxNumber)}</div>` : ''}
       </div>
     </div>
 
     <div class="header-right">
       <div class="token-box">
         <div class="token-label">OPD TOKEN</div>
-        <div class="token-number">#${visit.tokenNumber}</div>
+        <div class="token-number">#${escapeHtml(visit.tokenNumber)}</div>
         <div class="token-meta">
-          <div>Priority: <span class="badge-priority">${visit.priority || 'NORMAL'}</span></div>
+          <div>Priority: <span class="badge-priority">${escapeHtml(visit.priority || 'NORMAL')}</span></div>
           <div>${formattedDate} • ${formattedTime}</div>
         </div>
       </div>
@@ -431,28 +372,28 @@ export function renderVitalsSheetHtml(params: {
   <div class="patient-banner">
     <div class="patient-field">
       <span class="field-label">Patient Name</span>
-      <span class="field-value" style="font-size: 10.5pt; color: #0f766e;">${patient.fullName}</span>
+      <span class="field-value" style="font-size: 10.5pt; color: #0f766e;">${escapeHtml(patient.fullName)}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">MR Number</span>
-      <span class="field-value" style="font-size: 10pt;">${patient.mrn}</span>
+      <span class="field-value" style="font-size: 10pt;">${escapeHtml(patient.mrn)}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Age / Gender / Blood</span>
-      <span class="field-value">${patient.age ? `${patient.age} Yrs` : '—'} / ${patient.gender || '—'} / <strong style="color:#e11d48;">${bloodGroupLabel}</strong></span>
+      <span class="field-value">${patient.age ? `${escapeHtml(patient.age)} Yrs` : '—'} / ${escapeHtml(patient.gender || '—')} / <strong style="color:#e11d48;">${bloodGroupLabel}</strong></span>
     </div>
     <div class="patient-field">
       <span class="field-label">Contact Phone</span>
-      <span class="field-value">${patient.phone || '—'}</span>
+      <span class="field-value">${escapeHtmlOrDash(patient.phone)}</span>
     </div>
 
     <div class="patient-field">
       <span class="field-label">Consulting Specialist</span>
-      <span class="field-value">${visit.doctorName || 'Assigned Specialist'}</span>
+      <span class="field-value">${escapeHtml(visit.doctorName || 'Assigned Specialist')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Specialty & Dept</span>
-      <span class="field-value">${visit.doctorSpecialty || visit.departmentName || 'General OPD'}</span>
+      <span class="field-value">${escapeHtml(visit.doctorSpecialty || visit.departmentName || 'General OPD')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Encounter / Visit Type</span>
@@ -460,11 +401,11 @@ export function renderVitalsSheetHtml(params: {
     </div>
     <div class="patient-field">
       <span class="field-label">Panel / Corporate Client</span>
-      <span class="field-value" style="color: #0369a1;">${patient?.panelClientName || 'Private (Self-Pay)'}</span>
+      <span class="field-value" style="color: #0369a1;">${escapeHtml(patient?.panelClientName || 'Private (Self-Pay)')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Employee Id</span>
-      <span class="field-value" style="color: #0369a1;">${patient?.employeeId || 'N/A'}</span>
+      <span class="field-value" style="color: #0369a1;">${escapeHtmlOrDash(patient?.employeeId)}</span>
     </div>
   </div>
 
@@ -474,7 +415,7 @@ export function renderVitalsSheetHtml(params: {
   <div class="section-title">
     <span>Initial Triage Assessment & Vital Signs</span>
     <span style="font-size: 7.5pt; font-weight: 600; color: #64748b; text-transform: none;">
-      Recorded at: ${vitals?.recordedAt ? new Date(vitals.recordedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }) : formattedTime}
+      Recorded at: ${vitals?.recordedAt ? escapeHtml(new Date(vitals.recordedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })) : formattedTime}
     </span>
   </div>
 
@@ -483,17 +424,17 @@ export function renderVitalsSheetHtml(params: {
     <div class="vital-card">
       <div class="vital-header">Blood Pressure</div>
       <div class="vital-value">
-        ${vitals?.systolicBp && vitals?.diastolicBp ? `${vitals.systolicBp}/${vitals.diastolicBp}` : '—'}
+        ${vitals?.systolicBp && vitals?.diastolicBp ? `${escapeHtml(vitals.systolicBp)}/${escapeHtml(vitals.diastolicBp)}` : '—'}
         <span class="vital-unit">mmHg</span>
       </div>
-      <div class="vital-subtext ${bpClass}">${bpCategory || 'Not recorded'}</div>
+      <div class="vital-subtext ${bpClass}">${escapeHtml(bpCategory || 'Not recorded')}</div>
     </div>
 
     <!-- Pulse Rate -->
     <div class="vital-card">
       <div class="vital-header">Heart / Pulse Rate</div>
       <div class="vital-value">
-        ${vitals?.pulse || '—'}
+        ${vitals?.pulse ? escapeHtml(vitals.pulse) : '—'}
         <span class="vital-unit">bpm</span>
       </div>
       <div class="vital-subtext">${vitals?.pulse ? (vitals.pulse > 100 ? 'Tachycardia' : vitals.pulse < 60 ? 'Bradycardia' : 'Normal Rhythm') : '—'}</div>
@@ -503,7 +444,7 @@ export function renderVitalsSheetHtml(params: {
     <div class="vital-card">
       <div class="vital-header">Body Temperature</div>
       <div class="vital-value">
-        ${vitals?.temperature ? Number(vitals.temperature).toFixed(1) : '—'}
+        ${vitals?.temperature ? escapeHtml(Number(vitals.temperature).toFixed(1)) : '—'}
         <span class="vital-unit">°F</span>
       </div>
       <div class="vital-subtext">${vitals?.temperature ? (Number(vitals.temperature) >= 100.4 ? 'Febrile / Fever' : 'Afebrile') : '—'}</div>
@@ -513,7 +454,7 @@ export function renderVitalsSheetHtml(params: {
     <div class="vital-card">
       <div class="vital-header">Oxygen (SpO2)</div>
       <div class="vital-value">
-        ${vitals?.spo2 ? `${vitals.spo2}%` : '—'}
+        ${vitals?.spo2 ? `${escapeHtml(vitals.spo2)}%` : '—'}
       </div>
       <div class="vital-subtext ${vitals?.spo2 && vitals.spo2 < 94 ? 'critical' : 'normal'}">${vitals?.spo2 ? (vitals.spo2 >= 95 ? 'Normal (Room Air)' : 'Low Saturation') : '—'}</div>
     </div>
@@ -522,7 +463,7 @@ export function renderVitalsSheetHtml(params: {
     <div class="vital-card">
       <div class="vital-header">Weight & Height</div>
       <div class="vital-value" style="font-size: 11pt;">
-        ${vitals?.weight ? `${vitals.weight} kg` : '—'} / ${vitals?.height ? `${vitals.height} cm` : '—'}
+        ${vitals?.weight ? `${escapeHtml(vitals.weight)} kg` : '—'} / ${vitals?.height ? `${escapeHtml(vitals.height)} cm` : '—'}
       </div>
       <div class="vital-subtext">${vitals?.height ? `${(Number(vitals.height) / 30.48).toFixed(1)} ft` : '—'}</div>
     </div>
@@ -531,35 +472,35 @@ export function renderVitalsSheetHtml(params: {
     <div class="vital-card">
       <div class="vital-header">Body Mass Index (BMI)</div>
       <div class="vital-value">
-        ${vitals?.bmi ? Number(vitals.bmi).toFixed(1) : '—'}
+        ${vitals?.bmi ? escapeHtml(Number(vitals.bmi).toFixed(1)) : '—'}
         <span class="vital-unit">kg/m²</span>
       </div>
-      <div class="vital-subtext">${bmiCategory || '—'}</div>
+      <div class="vital-subtext">${escapeHtml(bmiCategory || '—')}</div>
     </div>
 
     <!-- Blood Glucose -->
     <div class="vital-card">
       <div class="vital-header">Blood Sugar (BS)</div>
       <div class="vital-value">
-        ${vitals?.bloodGlucose ? `${vitals.bloodGlucose}` : '—'}
+        ${vitals?.bloodGlucose ? `${escapeHtml(vitals.bloodGlucose)}` : '—'}
         <span class="vital-unit">mg/dL</span>
       </div>
-      <div class="vital-subtext">${vitals?.glucoseType || 'Random Glucose'}</div>
+      <div class="vital-subtext">${escapeHtml(vitals?.glucoseType || 'Random Glucose')}</div>
     </div>
 
     <!-- Resp Rate & Pain -->
     <div class="vital-card">
       <div class="vital-header">Resp. Rate & Pain</div>
       <div class="vital-value" style="font-size: 11pt;">
-        ${vitals?.respiratoryRate ? `${vitals.respiratoryRate}/min` : '—'} | Pain: ${vitals?.painScore != null ? `${vitals.painScore}/10` : '0/10'}
+        ${vitals?.respiratoryRate ? `${escapeHtml(vitals.respiratoryRate)}/min` : '—'} | Pain: ${vitals?.painScore != null ? `${escapeHtml(vitals.painScore)}/10` : '0/10'}
       </div>
-      <div class="vital-subtext">${vitals?.observations ? vitals.observations.substring(0, 24) : 'Normal breathing'}</div>
+      <div class="vital-subtext">${vitals?.observations ? escapeHtml(vitals.observations.substring(0, 24)) : 'Normal breathing'}</div>
     </div>
   </div>
 
   ${vitals?.observations ? `
     <div style="background: #f8fafc; border-left: 3.5px solid #0f766e; padding: 6px 12px; font-size: 8.5pt; margin-bottom: 14px; border-radius: 0 6px 6px 0;">
-      <strong>Front-Desk Triage Notes / Patient Complaints:</strong> ${vitals.observations}
+      <strong>Front-Desk Triage Notes / Patient Complaints:</strong> ${escapeHtml(vitals.observations)}
     </div>
   ` : ''}
 

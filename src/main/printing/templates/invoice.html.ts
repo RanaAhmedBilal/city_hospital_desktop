@@ -1,32 +1,33 @@
 import { HospitalSettingDto, InvoiceDto } from '../../../shared/types';
 import { InvoiceStatus } from '../../../shared/constants/enums';
+import { escapeHtml, escapeHtmlOrDash } from '../utils/escapeHtml';
 
 export function renderInvoiceHtml(params: {
   hospital: HospitalSettingDto;
   invoice: InvoiceDto;
 }): string {
   const { hospital, invoice } = params;
-  const currency = hospital.currencySymbol || 'Rs.';
+  const currency = escapeHtml(hospital.currencySymbol || 'Rs.');
 
   const isPaid = invoice.status === InvoiceStatus.PAID || Number(invoice.balanceTotal) <= 0;
   const isPartiallyPaid = invoice.status === InvoiceStatus.PARTIALLY_PAID && Number(invoice.balanceTotal) > 0;
 
   // Format Date & Time
   const createdDate = invoice.createdAt ? new Date(invoice.createdAt) : new Date();
-  const formattedDate = createdDate.toLocaleDateString('en-GB', {
+  const formattedDate = escapeHtml(createdDate.toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
-  const formattedTime = createdDate.toLocaleTimeString('en-US', {
+  }));
+  const formattedTime = escapeHtml(createdDate.toLocaleTimeString('en-US', {
     hour: '2-digit',
     minute: '2-digit',
     hour12: true,
-  });
+  }));
 
   // Extract Lab Sample Barcode if present in notes
   const barcodeMatch = invoice.notes?.match(/SMP-[A-Za-z0-9_-]+/);
-  const sampleBarcode = barcodeMatch ? barcodeMatch[0] : null;
+  const sampleBarcode = barcodeMatch ? escapeHtml(barcodeMatch[0]) : null;
 
   // Determine if this is primarily a Lab/Diagnostic Bill
   const isLabBill = invoice.items?.some((i) =>
@@ -52,11 +53,11 @@ export function renderInvoiceHtml(params: {
         <td style="width: 38px; text-align: center; font-weight: 700; color: #64748b;">${idx + 1}</td>
         <td>
           <div style="font-weight: 700; color: #0f172a; font-size: 9.5pt;">
-            ${cleanServiceName}
+            ${escapeHtml(cleanServiceName)}
           </div>
           ${isLabItem ? `<div style="font-size: 7.5pt; color: #0f766e; font-weight: 600; text-transform: uppercase;">Diagnostic Laboratory Investigation</div>` : ''}
         </td>
-        <td style="text-align: center; font-weight: 700;">${item.quantity}</td>
+        <td style="text-align: center; font-weight: 700;">${escapeHtml(item.quantity)}</td>
         <td style="text-align: right; color: #334155;">${currency} ${Number(item.unitPrice).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
         <td style="text-align: right; color: #059669;">${item.discount > 0 ? `- ${currency} ${Number(item.discount).toLocaleString('en-US', { minimumFractionDigits: 2 })}` : '—'}</td>
         <td style="text-align: right; font-weight: 800; color: #0f172a;">${currency} ${Number(item.netAmount).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
@@ -68,23 +69,23 @@ export function renderInvoiceHtml(params: {
   // Payment Receipts Rows
   const paymentsRows = (invoice.payments || [])
     .map((p) => {
-      const pDate = new Date(p.receivedAt).toLocaleDateString('en-GB', {
+      const pDate = escapeHtml(new Date(p.receivedAt).toLocaleDateString('en-GB', {
         day: '2-digit',
         month: 'short',
         year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
-      });
+      }));
 
       return `
       <tr>
-        <td style="font-weight: 700; color: #0f766e;">${p.receiptNumber}</td>
+        <td style="font-weight: 700; color: #0f766e;">${escapeHtml(p.receiptNumber)}</td>
         <td style="color: #64748b;">${pDate}</td>
         <td>
           <span style="display: inline-block; padding: 1px 6px; border-radius: 4px; background: #e0f2fe; color: #0369a1; font-weight: 700; font-size: 7.5pt;">
-            ${p.paymentMethod}
+            ${escapeHtml(p.paymentMethod)}
           </span>
-          ${p.transactionReference ? `<span style="font-size: 7.5pt; color: #64748b; margin-left: 4px;">(Ref: ${p.transactionReference})</span>` : ''}
+          ${p.transactionReference ? `<span style="font-size: 7.5pt; color: #64748b; margin-left: 4px;">(Ref: ${escapeHtml(p.transactionReference)})</span>` : ''}
         </td>
         <td style="text-align: right; font-weight: 800; color: #166534;">
           ${currency} ${Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
@@ -93,6 +94,7 @@ export function renderInvoiceHtml(params: {
     `;
     })
     .join('');
+
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -512,21 +514,21 @@ export function renderInvoiceHtml(params: {
       <div class="hospital-brand">
         <div class="hospital-logo">🏥</div>
         <div>
-          <h1 class="hospital-name">${hospital.hospitalName || 'CITY HOSPITAL'}</h1>
-          <div class="hospital-tagline">${hospital.tagline || 'Center for Medical Excellence & Compassionate Care'}</div>
+          <h1 class="hospital-name">${escapeHtml(hospital.hospitalName || 'CITY HOSPITAL')}</h1>
+          <div class="hospital-tagline">${escapeHtml(hospital.tagline || 'Center for Medical Excellence & Compassionate Care')}</div>
         </div>
       </div>
       <div class="hospital-contact-details">
-        <div><strong>Address:</strong> ${hospital.address}, ${hospital.city}</div>
-        <div><strong>Helpline:</strong> ${hospital.phone} | <strong>Email:</strong> ${hospital.email}</div>
-        ${hospital.taxNumber ? `<div><strong>Reg / NTN:</strong> ${hospital.taxNumber}</div>` : ''}
+        <div><strong>Address:</strong> ${escapeHtml(hospital.address)}, ${escapeHtml(hospital.city)}</div>
+        <div><strong>Helpline:</strong> ${escapeHtml(hospital.phone)} | <strong>Email:</strong> ${escapeHtml(hospital.email)}</div>
+        ${hospital.taxNumber ? `<div><strong>Reg / NTN:</strong> ${escapeHtml(hospital.taxNumber)}</div>` : ''}
       </div>
     </div>
 
     <div class="header-right">
       <div class="invoice-badge-box">
-        <div class="invoice-badge-title">${billTitle}</div>
-        <div class="invoice-number-display">${invoice.invoiceNumber}</div>
+        <div class="invoice-badge-title">${escapeHtml(billTitle)}</div>
+        <div class="invoice-number-display">${escapeHtml(invoice.invoiceNumber)}</div>
         <div class="invoice-meta-text">
           <div>${formattedDate} • ${formattedTime}</div>
           <div>
@@ -545,38 +547,39 @@ export function renderInvoiceHtml(params: {
   <div class="patient-banner">
     <div class="patient-field">
       <span class="field-label">Patient Name</span>
-      <span class="field-value" style="font-size: 10pt; color: #0f766e;">${invoice.patient?.fullName || '—'}</span>
+      <span class="field-value" style="font-size: 10pt; color: #0f766e;">${escapeHtmlOrDash(invoice.patient?.fullName)}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">MR Number</span>
-      <span class="field-value" style="font-size: 9.5pt;">${invoice.patient?.mrn || '—'}</span>
+      <span class="field-value" style="font-size: 9.5pt;">${escapeHtmlOrDash(invoice.patient?.mrn)}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">NIC / CNIC</span>
-      <span class="field-value">${invoice.patient?.nic || '—'}</span>
+      <span class="field-value">${escapeHtmlOrDash(invoice.patient?.nic)}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Contact Phone</span>
-      <span class="field-value">${invoice.patient?.phone || '—'}</span>
+      <span class="field-value">${escapeHtmlOrDash(invoice.patient?.phone)}</span>
     </div>
 
     <div class="patient-field">
       <span class="field-label">Prescribing Doctor</span>
-      <span class="field-value">${invoice.doctorName || 'General OPD Specialist'}</span>
+      <span class="field-value">${escapeHtml(invoice.doctorName || 'General OPD Specialist')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Department</span>
-      <span class="field-value">${invoice.departmentName || 'Outpatient Department'}</span>
+      <span class="field-value">${escapeHtml(invoice.departmentName || 'Outpatient Department')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Panel / Corporate</span>
-      <span class="field-value" style="color: #0369a1;">${invoice.panelClientName || invoice.patient?.panelClientName || 'Private (Self-Pay)'}</span>
+      <span class="field-value" style="color: #0369a1;">${escapeHtml(invoice.panelClientName || invoice.patient?.panelClientName || 'Private (Self-Pay)')}</span>
     </div>
     <div class="patient-field">
       <span class="field-label">Employee ID</span>
-      <span class="field-value" style="color: #0369a1;">${invoice.patient?.employeeId || 'N/A'}</span>
+      <span class="field-value" style="color: #0369a1;">${escapeHtmlOrDash(invoice.patient?.employeeId)}</span>
     </div>
   </div>
+
 
   <!-- ==================================================== -->
   <!-- 3. SPECIMEN & SAMPLING DETAILS (FOR LAB BILLS) -->

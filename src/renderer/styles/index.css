@@ -386,14 +386,22 @@ h1, h2, h3, h4, h5, h6 {
 
 .lab-workstation-grid {
   display: grid;
-  grid-template-columns: 1.35fr 1fr;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 1.25rem;
+}
+
+.lab-workstation-grid > * {
+  min-width: 0;
 }
 
 .billing-workstation-grid {
   display: grid;
-  grid-template-columns: 1.5fr 1fr;
+  grid-template-columns: minmax(0, 1fr) 380px;
   gap: 1.25rem;
+}
+
+.billing-workstation-grid > * {
+  min-width: 0;
 }
 
 .scrollable-tabs-row {

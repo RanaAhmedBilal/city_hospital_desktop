@@ -32,13 +32,18 @@ export class BillingService {
     discount?: number;
     taxAmount?: number;
   }, authUserId: string): Promise<VisitChargeDto> {
-    const qty = Math.max(1, data.quantity || 1);
-    const unitPrice = new Decimal(data.unitPrice || 0);
-    const discount = new Decimal(data.discount || 0);
-    const tax = new Decimal(data.taxAmount || 0);
+    const patient = await prisma.patient.findUnique({ where: { id: data.patientId } });
+    if (!patient || !patient.isActive) {
+      throw new Error('Patient is inactive or deactivated. Cannot add billing charges for an inactive patient.');
+    }
 
-    const gross = unitPrice.times(qty);
-    const net = Decimal.max(0, gross.minus(discount).plus(tax));
+    const qty = Math.max(1, data.quantity || 1);
+    const unitPrice = new Decimal(data.unitPrice || 0).toDecimalPlaces(4);
+    const discount = new Decimal(data.discount || 0).toDecimalPlaces(4);
+    const tax = new Decimal(data.taxAmount || 0).toDecimalPlaces(4);
+
+    const gross = unitPrice.times(qty).toDecimalPlaces(4);
+    const net = Decimal.max(0, gross.minus(discount).plus(tax)).toDecimalPlaces(4);
 
     const charge = await prisma.visitCharge.create({
       data: {
@@ -99,6 +104,11 @@ export class BillingService {
     };
   }, authUserId: string): Promise<InvoiceDto> {
     return await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({ where: { id: data.patientId } });
+      if (!patient || !patient.isActive) {
+        throw new Error('Patient is inactive or deactivated. Cannot finalize an invoice for an inactive patient.');
+      }
+
       // 1. Fetch requested charges
       const charges = await tx.visitCharge.findMany({
         where: {
@@ -112,26 +122,26 @@ export class BillingService {
         throw new Error('No valid charges selected for invoice generation.');
       }
 
-      // Calculate totals using Decimal arithmetic
+      // Calculate totals using Decimal arithmetic (4 decimal places precision)
       let subtotal = new Decimal(0);
       let itemDiscountSum = new Decimal(0);
       let taxSum = new Decimal(0);
 
       charges.forEach((c) => {
-        const itemGross = new Decimal(c.unitPrice).times(c.quantity);
-        subtotal = subtotal.plus(itemGross);
-        itemDiscountSum = itemDiscountSum.plus(c.discount);
-        taxSum = taxSum.plus(c.taxAmount);
+        const itemGross = new Decimal(c.unitPrice).times(c.quantity).toDecimalPlaces(4);
+        subtotal = subtotal.plus(itemGross).toDecimalPlaces(4);
+        itemDiscountSum = itemDiscountSum.plus(c.discount).toDecimalPlaces(4);
+        taxSum = taxSum.plus(c.taxAmount).toDecimalPlaces(4);
       });
 
-      const globalDiscount = new Decimal(data.discountTotal || 0);
-      const totalDiscount = itemDiscountSum.plus(globalDiscount);
-      const netTotal = Decimal.max(0, subtotal.minus(totalDiscount).plus(taxSum));
+      const globalDiscount = new Decimal(data.discountTotal || 0).toDecimalPlaces(4);
+      const totalDiscount = itemDiscountSum.plus(globalDiscount).toDecimalPlaces(4);
+      const netTotal = Decimal.max(0, subtotal.minus(totalDiscount).plus(taxSum)).toDecimalPlaces(4);
 
       // Initial Payment check
-      const initPayAmount = data.initialPayment ? new Decimal(data.initialPayment.amount) : new Decimal(0);
+      const initPayAmount = data.initialPayment ? new Decimal(data.initialPayment.amount).toDecimalPlaces(4) : new Decimal(0);
       const paidTotal = initPayAmount;
-      const balanceTotal = Decimal.max(0, netTotal.minus(paidTotal));
+      const balanceTotal = Decimal.max(0, netTotal.minus(paidTotal)).toDecimalPlaces(4);
 
       let invoiceStatus = InvoiceStatus.FINALIZED;
       if (balanceTotal.isZero() && paidTotal.isPositive()) {

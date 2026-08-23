@@ -21,7 +21,16 @@ export class PrescriptionService {
     items: PrescriptionItemDto[];
     investigations: PrescriptionInvestigationDto[];
   }, authUserId: string): Promise<PrescriptionDto> {
+    const patient = await prisma.patient.findUnique({ where: { id: data.patientId } });
+    if (!patient || !patient.isActive) {
+      throw new Error('Patient is inactive or deactivated. Cannot save prescription for an inactive patient.');
+    }
+
+    // Perform pre-prescribing contraindication check against recorded patient allergies
+    await this.checkPatientAllergyContraindications(data.patientId, data.items);
+
     return await prisma.$transaction(async (tx) => {
+
       let prescription = await tx.prescription.findFirst({
         where: { visitId: data.visitId },
         include: { items: true, investigations: true },
@@ -54,13 +63,14 @@ export class PrescriptionService {
         });
         targetPrescriptionId = created.id;
       } else {
-        if (prescription.status === ClinicalRecordStatus.FINALIZED) {
-          throw new Error('This prescription is already finalized. Please use the amendment workflow to create a correction.');
+        if (prescription.status === ClinicalRecordStatus.FINALIZED || prescription.status === ClinicalRecordStatus.AMENDED) {
+          throw new Error('This prescription has already been finalized or amended. Direct overwriting of finalized medical records is prohibited. Please use the prescription amendment workflow.');
         }
 
         // Delete previous items & investigations to recreate cleanly for draft
         await tx.prescriptionItem.deleteMany({ where: { prescriptionId: prescription.id } });
         await tx.prescriptionInvestigation.deleteMany({ where: { prescriptionId: prescription.id } });
+
 
         const updated = await tx.prescription.update({
           where: { id: prescription.id },
@@ -161,6 +171,18 @@ export class PrescriptionService {
     items: PrescriptionItemDto[];
     investigations: PrescriptionInvestigationDto[];
   }, authUserId: string): Promise<PrescriptionDto> {
+    if (!data.reason || !data.reason.trim() || data.reason.trim().length < 5) {
+      throw new Error('An explicit amendment reason (minimum 5 characters) is required to amend a finalized medical prescription.');
+    }
+
+    const existingRx = await prisma.prescription.findUnique({
+      where: { id: data.prescriptionId },
+      select: { patientId: true },
+    });
+    if (existingRx) {
+      await this.checkPatientAllergyContraindications(existingRx.patientId, data.items);
+    }
+
     return await prisma.$transaction(async (tx) => {
       const original = await tx.prescription.findUnique({
         where: { id: data.prescriptionId },
@@ -173,6 +195,11 @@ export class PrescriptionService {
       if (!original) {
         throw new Error('Prescription record not found.');
       }
+
+      if (original.status === ClinicalRecordStatus.DRAFT) {
+        throw new Error('This prescription is currently in DRAFT status. Draft prescriptions should be finalized directly rather than amended.');
+      }
+
 
       // 1. Record snapshot in amendments
       await tx.prescriptionAmendment.create({
@@ -345,4 +372,36 @@ export class PrescriptionService {
       })) : [],
     };
   }
+
+  /**
+   * Contraindication safety check against patient allergies
+   */
+  private static async checkPatientAllergyContraindications(patientId: string, items: PrescriptionItemDto[]): Promise<void> {
+    if (!patientId || !items || items.length === 0) return;
+
+    const patientAllergies = await prisma.patientAllergy.findMany({
+      where: { patientId },
+    });
+
+    if (patientAllergies.length === 0) return;
+
+    for (const item of items) {
+      const medName = item.medicineName?.toLowerCase() || '';
+      const genName = item.genericName?.toLowerCase() || '';
+
+      for (const allergy of patientAllergies) {
+        const allergen = allergy.allergenName.toLowerCase().trim();
+        if (!allergen) continue;
+
+        if (medName.includes(allergen) || (genName && genName.includes(allergen))) {
+          const severityStr = allergy.severity ? allergy.severity.toUpperCase() : 'UNKNOWN';
+          const reactionStr = allergy.reaction ? ` (Reaction: ${allergy.reaction})` : '';
+          throw new Error(
+            `CLINICAL WARNING: Patient has a recorded ${severityStr} allergy to "${allergy.allergenName}"${reactionStr}. Prescribing "${item.medicineName}" is contraindicated.`
+          );
+        }
+      }
+    }
+  }
 }
+

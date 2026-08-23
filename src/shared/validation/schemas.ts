@@ -8,6 +8,8 @@ import {
   ServiceCategory,
   PaymentMethod,
   AdjustmentType,
+  AllergySeverity,
+  AllergyType,
 } from '../constants/enums';
 
 // Auth Validation
@@ -42,7 +44,16 @@ export const UpdatePatientSchema = CreatePatientSchema.partial().extend({
   isActive: z.boolean().optional(),
 });
 
+export const AddPatientAllergySchema = z.object({
+  patientId: z.string().uuid('Patient ID is required'),
+  allergenName: z.string().min(1, 'Allergen name is required'),
+  allergenType: z.nativeEnum(AllergyType).default(AllergyType.DRUG),
+  severity: z.nativeEnum(AllergySeverity).default(AllergySeverity.MODERATE),
+  reaction: z.string().optional().nullable(),
+});
+
 // Panel Client Validation
+
 export const PanelClientSchema = z.object({
   id: z.string().uuid().optional().nullable(),
   name: z.string().min(2, 'Organization name is required'),
@@ -134,14 +145,15 @@ export const SaveConsultationSchema = z.object({
 });
 
 export const AmendConsultationSchema = z.object({
-  consultationId: z.string().uuid(),
-  reason: z.string().min(5, 'Amendment reason is required'),
-  chiefComplaint: z.string().min(2),
-  diagnosis: z.string().min(2),
+  consultationId: z.string().uuid('Valid consultation ID is required'),
+  reason: z.string().min(5, 'Amendment reason is required (minimum 5 characters)'),
+  chiefComplaint: z.string().min(2, 'Chief complaint is required'),
+  diagnosis: z.string().min(2, 'Diagnosis is required'),
   clinicalNotes: z.string().optional().nullable(),
   advice: z.string().optional().nullable(),
   followUpDate: z.string().optional().nullable(),
 });
+
 
 // Medicine Validation
 export const MedicineSchema = z.object({
@@ -206,8 +218,8 @@ export const SavePrescriptionSchema = z.object({
 });
 
 export const AmendPrescriptionSchema = z.object({
-  prescriptionId: z.string().uuid(),
-  reason: z.string().min(5, 'Amendment reason is required'),
+  prescriptionId: z.string().uuid('Valid prescription ID is required'),
+  reason: z.string().min(5, 'Amendment reason is required (minimum 5 characters)'),
   diagnosis: z.string().optional().nullable(),
   clinicalNotes: z.string().optional().nullable(),
   advice: z.string().optional().nullable(),
@@ -215,6 +227,7 @@ export const AmendPrescriptionSchema = z.object({
   items: z.array(PrescriptionItemSchema),
   investigations: z.array(PrescriptionInvestigationSchema),
 });
+
 
 // Billing & Invoicing Validation
 export const ServiceSchema = z.object({

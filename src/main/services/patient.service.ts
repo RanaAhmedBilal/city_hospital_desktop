@@ -116,6 +116,9 @@ export class PatientService {
       where: { id },
       include: {
         panelClient: true,
+        allergies: {
+          orderBy: { recordedAt: 'desc' },
+        },
         visits: {
           orderBy: { visitDateTime: 'desc' },
           include: {
@@ -153,6 +156,70 @@ export class PatientService {
 
     return patient;
   }
+
+  /**
+   * Add a recorded allergy to patient profile
+   */
+  static async addPatientAllergy(data: any, authUserId: string): Promise<any> {
+    const patient = await prisma.patient.findUnique({ where: { id: data.patientId } });
+    if (!patient) {
+      throw new Error(`Patient with ID ${data.patientId} not found.`);
+    }
+
+    const allergy = await prisma.patientAllergy.create({
+      data: {
+        patientId: data.patientId,
+        allergenName: data.allergenName.trim(),
+        allergenType: data.allergenType || 'DRUG',
+        severity: data.severity || 'MODERATE',
+        reaction: data.reaction?.trim() || null,
+        recordedById: authUserId,
+      },
+    });
+
+    await AuditService.log({
+      userId: authUserId,
+      action: 'PATIENT_ADD_ALLERGY',
+      entityType: 'PatientAllergy',
+      entityId: allergy.id,
+      newValue: allergy,
+    });
+
+    return allergy;
+  }
+
+  /**
+   * Fetch all recorded allergies for a patient
+   */
+  static async getPatientAllergies(patientId: string): Promise<any[]> {
+    return await prisma.patientAllergy.findMany({
+      where: { patientId },
+      orderBy: { recordedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Remove recorded allergy from patient profile
+   */
+  static async removePatientAllergy(allergyId: string, authUserId: string): Promise<boolean> {
+    const existing = await prisma.patientAllergy.findUnique({ where: { id: allergyId } });
+    if (!existing) {
+      throw new Error(`Allergy record with ID ${allergyId} not found.`);
+    }
+
+    await prisma.patientAllergy.delete({ where: { id: allergyId } });
+
+    await AuditService.log({
+      userId: authUserId,
+      action: 'PATIENT_REMOVE_ALLERGY',
+      entityType: 'PatientAllergy',
+      entityId: allergyId,
+      oldValue: existing,
+    });
+
+    return true;
+  }
+
 
   /**
    * Update patient demographics
@@ -198,9 +265,11 @@ export class PatientService {
       include: { panelClient: true },
     });
 
+    const isDeactivation = data.isActive === false && existing.isActive !== false;
+
     await AuditService.log({
       userId: authUserId,
-      action: 'PATIENT_UPDATE',
+      action: isDeactivation ? 'PATIENT_DEACTIVATE' : 'PATIENT_UPDATE',
       entityType: 'Patient',
       entityId: id,
       oldValue: existing,
@@ -209,6 +278,7 @@ export class PatientService {
 
     return this.formatPatient(updated);
   }
+
 
   private static formatPatient(p: any): PatientDto {
     return {

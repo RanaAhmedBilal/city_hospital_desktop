@@ -5,6 +5,36 @@ import { disconnectPrisma } from './database/prisma';
 
 let mainWindow: BrowserWindow | null = null;
 
+/**
+ * Validate URL protocol and hostname against trusted hospital domain whitelist
+ */
+function isAllowedExternalUrl(urlString: string): boolean {
+  try {
+    const parsed = new URL(urlString);
+
+    // Strictly require http or https scheme
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return false;
+    }
+
+    const hostname = parsed.hostname.toLowerCase();
+
+    // Allowed local and trusted hospital domains
+    const allowedDomains = [
+      'localhost',
+      '127.0.0.1',
+      'cityhospital.org',
+      'cityhospital.com',
+    ];
+
+    return allowedDomains.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
 async function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1366,
@@ -24,10 +54,12 @@ async function createWindow() {
   // Register all typed IPC routes
   registerIpcHandlers();
 
-  // Handle external links safely in system browser
+  // Handle external links safely in system browser with strict scheme & domain validation
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('https:') || url.startsWith('http:')) {
+    if (isAllowedExternalUrl(url)) {
       shell.openExternal(url);
+    } else {
+      console.warn(`[Security Warning] Blocked external link navigation attempt to untrusted URL: ${url}`);
     }
     return { action: 'deny' };
   });

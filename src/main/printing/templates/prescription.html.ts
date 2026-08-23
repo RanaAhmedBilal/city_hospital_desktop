@@ -1,5 +1,6 @@
 import { HospitalSettingDto, PatientDto, PrescriptionDto, VisitVitalsDto } from '../../../shared/types';
 import { BloodGroupLabels, FoodRelationLabels } from '../../../shared/constants/enums';
+import { escapeHtml, escapeHtmlOrDash } from '../utils/escapeHtml';
 
 export function renderPrescriptionHtml(params: {
   hospital: HospitalSettingDto;
@@ -12,14 +13,14 @@ export function renderPrescriptionHtml(params: {
   const vitalsHtml = vitals
     ? `
     <div class="vitals-bar">
-      <div class="vital-item"><strong>BP:</strong> ${vitals.systolicBp && vitals.diastolicBp ? `${vitals.systolicBp}/${vitals.diastolicBp} mmHg` : '—'}</div>
-      <div class="vital-item"><strong>Pulse:</strong> ${vitals.pulse ? `${vitals.pulse} bpm` : '—'}</div>
-      <div class="vital-item"><strong>Temp:</strong> ${vitals.temperature ? `${vitals.temperature} °F` : '—'}</div>
-      <div class="vital-item"><strong>SpO2:</strong> ${vitals.spo2 ? `${vitals.spo2}%` : '—'}</div>
-      <div class="vital-item"><strong>Weight:</strong> ${vitals.weight ? `${vitals.weight} kg` : '—'}</div>
-      <div class="vital-item"><strong>Height:</strong> ${vitals.height ? `${vitals.height} cm` : '—'}</div>
-      <div class="vital-item"><strong>BMI:</strong> ${vitals.bmi ? `${vitals.bmi} kg/m²` : '—'}</div>
-      ${vitals.bloodGlucose ? `<div class="vital-item"><strong>Glucose:</strong> ${vitals.bloodGlucose} mg/dL (${vitals.glucoseType || 'Random'})</div>` : ''}
+      <div class="vital-item"><strong>BP:</strong> ${vitals.systolicBp && vitals.diastolicBp ? `${escapeHtml(vitals.systolicBp)}/${escapeHtml(vitals.diastolicBp)} mmHg` : '—'}</div>
+      <div class="vital-item"><strong>Pulse:</strong> ${vitals.pulse ? `${escapeHtml(vitals.pulse)} bpm` : '—'}</div>
+      <div class="vital-item"><strong>Temp:</strong> ${vitals.temperature ? `${escapeHtml(vitals.temperature)} °F` : '—'}</div>
+      <div class="vital-item"><strong>SpO2:</strong> ${vitals.spo2 ? `${escapeHtml(vitals.spo2)}%` : '—'}</div>
+      <div class="vital-item"><strong>Weight:</strong> ${vitals.weight ? `${escapeHtml(vitals.weight)} kg` : '—'}</div>
+      <div class="vital-item"><strong>Height:</strong> ${vitals.height ? `${escapeHtml(vitals.height)} cm` : '—'}</div>
+      <div class="vital-item"><strong>BMI:</strong> ${vitals.bmi ? `${escapeHtml(vitals.bmi)} kg/m²` : '—'}</div>
+      ${vitals.bloodGlucose ? `<div class="vital-item"><strong>Glucose:</strong> ${escapeHtml(vitals.bloodGlucose)} mg/dL (${escapeHtml(vitals.glucoseType || 'Random')})</div>` : ''}
     </div>
   `
     : '';
@@ -30,18 +31,18 @@ export function renderPrescriptionHtml(params: {
     <tr>
       <td style="width: 30px; text-align: center;">${idx + 1}</td>
       <td>
-        <div class="med-name">${item.medicineName} ${item.strength ? `(${item.strength})` : ''}</div>
-        ${item.genericName ? `<div class="med-generic">${item.genericName}</div>` : ''}
-        ${item.additionalNotes ? `<div class="med-notes">${item.additionalNotes}</div>` : ''}
+        <div class="med-name">${escapeHtml(item.medicineName)} ${item.strength ? `(${escapeHtml(item.strength)})` : ''}</div>
+        ${item.genericName ? `<div class="med-generic">${escapeHtml(item.genericName)}</div>` : ''}
+        ${item.additionalNotes ? `<div class="med-notes">${escapeHtml(item.additionalNotes)}</div>` : ''}
       </td>
-      <td>${item.dosageForm || '—'}</td>
-      <td><strong>${item.dose}</strong></td>
-      <td>${item.frequency}</td>
-      <td>${item.route}</td>
-      <td>${item.duration}</td>
+      <td>${escapeHtmlOrDash(item.dosageForm)}</td>
+      <td><strong>${escapeHtml(item.dose)}</strong></td>
+      <td>${escapeHtml(item.frequency)}</td>
+      <td>${escapeHtml(item.route)}</td>
+      <td>${escapeHtml(item.duration)}</td>
       <td>
-        <div>${item.foodRelation ? FoodRelationLabels[item.foodRelation] || item.foodRelation : ''}</div>
-        ${item.instructions ? `<div class="med-inst">${item.instructions}</div>` : ''}
+        <div>${escapeHtml(item.foodRelation ? FoodRelationLabels[item.foodRelation] || item.foodRelation : '')}</div>
+        ${item.instructions ? `<div class="med-inst">${escapeHtml(item.instructions)}</div>` : ''}
       </td>
     </tr>
   `
@@ -58,8 +59,8 @@ export function renderPrescriptionHtml(params: {
           .map(
             (inv) => `
           <li>
-            <strong>${inv.investigationName}</strong>
-            ${inv.instructions ? `<span class="inv-inst">(${inv.instructions})</span>` : ''}
+            <strong>${escapeHtml(inv.investigationName)}</strong>
+            ${inv.instructions ? `<span class="inv-inst">(${escapeHtml(inv.instructions)})</span>` : ''}
           </li>
         `
           )
@@ -74,7 +75,7 @@ export function renderPrescriptionHtml(params: {
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Prescription - ${prescription.prescriptionNo}</title>
+  <title>Prescription - ${escapeHtml(prescription.prescriptionNo)}</title>
   <style>
     @page {
       size: A4 portrait;
@@ -98,128 +99,122 @@ export function renderPrescriptionHtml(params: {
       display: flex;
       justify-content: space-between;
       align-items: flex-start;
-      border-bottom: 2.5px solid #0f766e;
-      padding-bottom: 10px;
-      margin-bottom: 12px;
+      border-bottom: 2.5px solid #0284c7;
+      padding-bottom: 12px;
+      margin-bottom: 14px;
     }
     .hospital-info h1 {
-      margin: 0;
-      color: #0f766e;
       font-size: 20pt;
       font-weight: 700;
+      color: #0369a1;
+      margin: 0 0 2px 0;
       letter-spacing: -0.5px;
     }
     .hospital-info .tagline {
-      color: #475569;
       font-size: 9.5pt;
+      color: #475569;
       font-style: italic;
       margin-bottom: 4px;
     }
     .hospital-info .meta {
-      color: #64748b;
       font-size: 8.5pt;
+      color: #64748b;
     }
     .doctor-info {
       text-align: right;
-      max-width: 45%;
     }
     .doctor-name {
-      color: #0f172a;
       font-size: 13pt;
       font-weight: 700;
+      color: #0f172a;
     }
     .doctor-spec {
-      color: #0f766e;
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 600;
+      color: #0284c7;
     }
     .doctor-reg {
-      color: #64748b;
       font-size: 8.5pt;
+      color: #64748b;
     }
     .patient-banner {
-      background: #f0fdfa;
-      border: 1px solid #ccfbf1;
-      border-radius: 6px;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 6px 12px;
-      font-size: 9.5pt;
-    }
-    .patient-field strong {
-      color: #0f766e;
-    }
-    .vitals-bar {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 4px;
-      padding: 6px 10px;
-      margin-bottom: 12px;
-      display: flex;
-      flex-wrap: wrap;
-      gap: 12px;
-      font-size: 9pt;
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px 12px;
+      margin-bottom: 14px;
     }
-    .vital-item strong {
+    .patient-field {
+      font-size: 9pt;
       color: #334155;
     }
+    .patient-field strong {
+      color: #0f172a;
+    }
+    .vitals-bar {
+      background: #f0f9ff;
+      border: 1px solid #bae6fd;
+      border-radius: 6px;
+      padding: 8px 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 18px;
+      margin-bottom: 14px;
+    }
+    .vital-item {
+      font-size: 8.5pt;
+      color: #0369a1;
+    }
     .clinical-row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 14px;
     }
     .section-box {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
-      border-radius: 5px;
-      padding: 8px 10px;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
     }
     .section-title {
-      color: #0f766e;
-      font-size: 10pt;
+      font-size: 9.5pt;
       font-weight: 700;
+      color: #0369a1;
       text-transform: uppercase;
       letter-spacing: 0.5px;
       margin-bottom: 4px;
-      border-bottom: 1px solid #f1f5f9;
+      border-bottom: 1px solid #e2e8f0;
       padding-bottom: 2px;
     }
     .section-content {
-      font-size: 9.5pt;
-      color: #1e293b;
+      font-size: 10pt;
+      color: #334155;
     }
     .rx-symbol {
       font-size: 22pt;
-      font-weight: bold;
-      color: #0f766e;
-      font-family: serif;
+      font-weight: 700;
+      color: #0284c7;
+      font-family: 'Times New Roman', serif;
+      line-height: 1;
       margin-bottom: 4px;
-      display: inline-block;
     }
     .med-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 12px;
-      font-size: 9pt;
+      margin-bottom: 14px;
     }
     .med-table th {
-      background: #0f766e;
-      color: #ffffff;
+      background: #f1f5f9;
+      color: #334155;
+      font-size: 8.5pt;
+      font-weight: 700;
       text-align: left;
       padding: 6px 8px;
-      font-weight: 600;
+      border: 1px solid #cbd5e1;
     }
     .med-table td {
-      padding: 6px 8px;
-      border-bottom: 1px solid #e2e8f0;
+      font-size: 9pt;
+      padding: 7px 8px;
+      border: 1px solid #e2e8f0;
       vertical-align: top;
-    }
-    .med-table tr:nth-child(even) {
-      background-color: #f8fafc;
     }
     .med-name {
       font-weight: 700;
@@ -230,41 +225,38 @@ export function renderPrescriptionHtml(params: {
       color: #64748b;
       font-style: italic;
     }
-    .med-inst {
-      font-size: 8pt;
-      color: #047857;
-    }
     .med-notes {
       font-size: 8pt;
-      color: #b45309;
+      color: #d97706;
+    }
+    .med-inst {
+      font-size: 8pt;
+      color: #475569;
     }
     .inv-list {
-      margin: 4px 0 0 16px;
+      margin: 4px 0 0 18px;
       padding: 0;
-      font-size: 9pt;
+      font-size: 9.5pt;
     }
     .inv-list li {
       margin-bottom: 3px;
     }
     .inv-inst {
-      color: #0f766e;
       font-size: 8.5pt;
-      margin-left: 4px;
+      color: #64748b;
+      font-style: italic;
     }
     .footer-container {
-      margin-top: 25px;
-      border-top: 1px dashed #cbd5e1;
-      padding-top: 10px;
+      margin-top: 30px;
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      page-break-inside: avoid;
+      padding-top: 10px;
     }
     .disclaimer {
       font-size: 7.5pt;
-      color: #64748b;
-      max-width: 60%;
-      line-height: 1.3;
+      color: #94a3b8;
+      max-width: 340px;
     }
     .signature-box {
       text-align: center;
@@ -286,30 +278,30 @@ export function renderPrescriptionHtml(params: {
   <!-- Header -->
   <div class="header-container">
     <div class="hospital-info">
-      <h1>${hospital.hospitalName}</h1>
-      <div class="tagline">${hospital.tagline || ''}</div>
-      <div class="meta">${hospital.address}, ${hospital.city} | Ph: ${hospital.phone}</div>
-      <div class="meta">Email: ${hospital.email} | Web: ${hospital.website || ''}</div>
+      <h1>${escapeHtml(hospital.hospitalName)}</h1>
+      <div class="tagline">${escapeHtml(hospital.tagline || '')}</div>
+      <div class="meta">${escapeHtml(hospital.address)}, ${escapeHtml(hospital.city)} | Ph: ${escapeHtml(hospital.phone)}</div>
+      <div class="meta">Email: ${escapeHtml(hospital.email)} | Web: ${escapeHtml(hospital.website || '')}</div>
     </div>
     <div class="doctor-info">
-      <div class="doctor-name">${prescription.doctorName || ''}</div>
-      <div class="doctor-spec">${prescription.doctorSpecialty || ''}</div>
-      <div class="doctor-reg">${prescription.doctorPrintableTitle || ''}</div>
-      <div class="doctor-reg" style="margin-top: 4px;"><strong>Rx No:</strong> ${prescription.prescriptionNo}</div>
-      <div class="doctor-reg"><strong>Date:</strong> ${new Date(prescription.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+      <div class="doctor-name">${escapeHtml(prescription.doctorName || '')}</div>
+      <div class="doctor-spec">${escapeHtml(prescription.doctorSpecialty || '')}</div>
+      <div class="doctor-reg">${escapeHtml(prescription.doctorPrintableTitle || '')}</div>
+      <div class="doctor-reg" style="margin-top: 4px;"><strong>Rx No:</strong> ${escapeHtml(prescription.prescriptionNo)}</div>
+      <div class="doctor-reg"><strong>Date:</strong> ${escapeHtml(new Date(prescription.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }))}</div>
     </div>
   </div>
 
   <!-- Patient Safety Banner -->
   <div class="patient-banner">
-    <div class="patient-field"><strong>Patient:</strong> ${patient.fullName}</div>
-    <div class="patient-field"><strong>MRN:</strong> ${patient.mrn}</div>
-    <div class="patient-field"><strong>Age/Gender:</strong> ${patient.age ? `${patient.age} yrs` : '—'} / ${patient.gender}</div>
-    <div class="patient-field"><strong>Blood Group:</strong> ${BloodGroupLabels[patient.bloodGroup] || patient.bloodGroup}</div>
-    <div class="patient-field"><strong>Phone:</strong> ${patient.phone}</div>
-    <div class="patient-field"><strong>NIC:</strong> ${patient.nic || '—'}</div>
-    <div class="patient-field"><strong>Employee ID:</strong> ${patient.employeeId || '—'}</div>
-    <div class="patient-field"><strong>Panel:</strong> ${patient.panelClientName || 'Private / Cash'}</div>
+    <div class="patient-field"><strong>Patient:</strong> ${escapeHtml(patient.fullName)}</div>
+    <div class="patient-field"><strong>MRN:</strong> ${escapeHtml(patient.mrn)}</div>
+    <div class="patient-field"><strong>Age/Gender:</strong> ${patient.age ? `${escapeHtml(patient.age)} yrs` : '—'} / ${escapeHtml(patient.gender)}</div>
+    <div class="patient-field"><strong>Blood Group:</strong> ${escapeHtml(BloodGroupLabels[patient.bloodGroup] || patient.bloodGroup)}</div>
+    <div class="patient-field"><strong>Phone:</strong> ${escapeHtml(patient.phone)}</div>
+    <div class="patient-field"><strong>NIC:</strong> ${escapeHtmlOrDash(patient.nic)}</div>
+    <div class="patient-field"><strong>Employee ID:</strong> ${escapeHtmlOrDash(patient.employeeId)}</div>
+    <div class="patient-field"><strong>Panel:</strong> ${escapeHtml(patient.panelClientName || 'Private / Cash')}</div>
   </div>
 
   <!-- Vitals Strip -->
@@ -322,7 +314,7 @@ export function renderPrescriptionHtml(params: {
         ? `
       <div class="section-box">
         <div class="section-title">Diagnosis:</div>
-        <div class="section-content"><strong>${prescription.diagnosis}</strong></div>
+        <div class="section-content"><strong>${escapeHtml(prescription.diagnosis)}</strong></div>
       </div>
     `
         : ''
@@ -332,7 +324,7 @@ export function renderPrescriptionHtml(params: {
         ? `
       <div class="section-box">
         <div class="section-title">Clinical Notes / Findings:</div>
-        <div class="section-content">${prescription.clinicalNotes}</div>
+        <div class="section-content">${escapeHtml(prescription.clinicalNotes)}</div>
       </div>
     `
         : ''
@@ -371,10 +363,10 @@ export function renderPrescriptionHtml(params: {
     <div class="section-box">
       <div class="section-title">Advice & Follow-Up:</div>
       <div class="section-content">
-        ${prescription.advice ? `<div>${prescription.advice}</div>` : ''}
+        ${prescription.advice ? `<div>${escapeHtml(prescription.advice)}</div>` : ''}
         ${
           prescription.followUpDate
-            ? `<div style="margin-top: 4px;"><strong>Next Visit / Follow-up:</strong> ${new Date(prescription.followUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}</div>`
+            ? `<div style="margin-top: 4px;"><strong>Next Visit / Follow-up:</strong> ${escapeHtml(new Date(prescription.followUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }))}</div>`
             : ''
         }
       </div>
@@ -386,13 +378,13 @@ export function renderPrescriptionHtml(params: {
   <!-- Footer & Signature -->
   <div class="footer-container">
     <div class="disclaimer">
-      ${hospital.prescriptionDisclaimer || ''}
-      <div style="margin-top: 4px;">Generated by City Hospital Management System. Version: ${prescription.version}</div>
+      ${escapeHtml(hospital.prescriptionDisclaimer || '')}
+      <div style="margin-top: 4px;">Generated by City Hospital Management System. Version: ${escapeHtml(prescription.version)}</div>
     </div>
     <div class="signature-box">
       <div class="sig-line"></div>
       <div class="sig-title">Doctor's Signature</div>
-      <div style="font-size: 7.5pt; color: #64748b;">${prescription.doctorName || ''}</div>
+      <div style="font-size: 7.5pt; color: #64748b;">${escapeHtml(prescription.doctorName || '')}</div>
     </div>
   </div>
 </body>

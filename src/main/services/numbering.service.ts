@@ -44,17 +44,92 @@ export class NumberingService {
       });
     }
 
-    const nextVal = counter.currentVal + 1;
+    let isUnique = false;
+    let formattedNumber = '';
+
+    while (!isUnique) {
+      const nextVal = counter.currentVal + 1;
+      counter.currentVal = nextVal;
+      const formattedSequence = String(nextVal).padStart(6, '0');
+      formattedNumber = `${defaultPrefix}${formattedSequence}`;
+
+      // Verify uniqueness against existing database records
+      let existingRecord: any = null;
+      if (type === 'MRN') {
+        existingRecord = await tx.patient.findUnique({ where: { mrn: formattedNumber } });
+      } else if (type === 'VISIT') {
+        existingRecord = await tx.visit.findUnique({ where: { visitNumber: formattedNumber } });
+      } else if (type === 'INVOICE') {
+        existingRecord = await tx.invoice.findUnique({ where: { invoiceNumber: formattedNumber } });
+      } else if (type === 'PRESCRIPTION') {
+        existingRecord = await tx.prescription.findUnique({ where: { prescriptionNo: formattedNumber } });
+      }
+
+      if (!existingRecord) {
+        isUnique = true;
+      }
+    }
 
     await tx.sequenceCounter.update({
       where: { name: type },
+      data: {
+        currentVal: counter.currentVal,
+        prefix: defaultPrefix,
+      },
+    });
+
+    return formattedNumber;
+  }
+
+  /**
+   * Generates an atomic, concurrency-safe daily token number for a specific doctor
+   */
+  static async getNextTokenNumber(doctorId: string, customTx: Prisma.TransactionClient): Promise<number> {
+    const todayStr = new Date().toISOString().split('T')[0];
+    const name = `TOKEN_${doctorId}_${todayStr}`;
+    const defaultPrefix = `TKN-${todayStr}-`;
+
+    let counter = await customTx.sequenceCounter.findUnique({
+      where: { name },
+    });
+
+    if (!counter) {
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+
+      const initialCount = await customTx.visit.count({
+        where: {
+          doctorId,
+          visitDateTime: {
+            gte: startOfDay,
+            lte: endOfDay,
+          },
+        },
+      });
+
+      counter = await customTx.sequenceCounter.create({
+        data: {
+          name,
+          prefix: defaultPrefix,
+          currentVal: initialCount,
+        },
+      });
+    }
+
+    const nextVal = counter.currentVal + 1;
+
+    await customTx.sequenceCounter.update({
+      where: { name },
       data: {
         currentVal: nextVal,
         prefix: defaultPrefix,
       },
     });
 
-    const formattedSequence = String(nextVal).padStart(6, '0');
-    return `${defaultPrefix}${formattedSequence}`;
+    return nextVal;
   }
 }
+

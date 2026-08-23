@@ -1,3 +1,4 @@
+import { Decimal } from 'decimal.js';
 import { prisma } from '../database/prisma';
 import { NumberingService } from './numbering.service';
 import { AuditService } from './audit.service';
@@ -18,6 +19,11 @@ export class VisitService {
     customFee?: number;
   }, authUserId: string): Promise<VisitDto> {
     return await prisma.$transaction(async (tx) => {
+      const patient = await tx.patient.findUnique({ where: { id: data.patientId } });
+      if (!patient || !patient.isActive) {
+        throw new Error('Selected patient is inactive or not found. Cannot create a visit for a deactivated patient.');
+      }
+
       // 1. Get today's max token number for this doctor
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
@@ -34,17 +40,7 @@ export class VisitService {
         throw new Error('Selected doctor is inactive or not found.');
       }
 
-      const todayVisitsCount = await tx.visit.count({
-        where: {
-          doctorId: data.doctorId,
-          visitDateTime: {
-            gte: startOfDay,
-            lte: endOfDay,
-          },
-        },
-      });
-
-      const tokenNumber = todayVisitsCount + 1;
+      const tokenNumber = await NumberingService.getNextTokenNumber(data.doctorId, tx);
       const visitNumber = await NumberingService.getNextNumber('VISIT', tx);
 
       const visit = await tx.visit.create({
@@ -67,20 +63,20 @@ export class VisitService {
         },
       });
 
-      // 2. Automatically generate Consultation Visit Charge
+      // 2. Automatically generate Consultation Visit Charge using Decimal.js with 4 decimal places precision
       const isFollowUp = data.visitType === VisitType.FOLLOW_UP;
-      let unitPrice = data.customFee != null
-        ? Number(data.customFee)
-        : (isFollowUp ? Number(doctor.followUpFee) : Number(doctor.consultationFee));
+      const unitPriceDecimal = data.customFee != null
+        ? new Decimal(data.customFee).toDecimalPlaces(4)
+        : (isFollowUp ? new Decimal(doctor.followUpFee).toDecimalPlaces(4) : new Decimal(doctor.consultationFee).toDecimalPlaces(4));
 
       // Check for panel client discount if patient belongs to panel
-      let discount = 0;
-      if (visit.patient.panelClient && Number(visit.patient.panelClient.discountPercent) > 0) {
-        const discountPercent = Number(visit.patient.panelClient.discountPercent);
-        discount = (unitPrice * discountPercent) / 100;
+      let discountDecimal = new Decimal(0);
+      if (visit.patient.panelClient && new Decimal(visit.patient.panelClient.discountPercent).gt(0)) {
+        const discountPercent = new Decimal(visit.patient.panelClient.discountPercent);
+        discountDecimal = unitPriceDecimal.times(discountPercent).dividedBy(100).toDecimalPlaces(4);
       }
 
-      const netAmount = Math.max(0, unitPrice - discount);
+      const netAmountDecimal = Decimal.max(0, unitPriceDecimal.minus(discountDecimal)).toDecimalPlaces(4);
 
       // Find consultation service if exists
       const consultationService = await tx.service.findFirst({
@@ -95,10 +91,10 @@ export class VisitService {
           serviceName: isFollowUp ? `Follow-up Consultation (${doctor.name})` : `Consultation Fee (${doctor.name})`,
           description: `Doctor visit token #${tokenNumber}`,
           quantity: 1,
-          unitPrice,
-          discount,
+          unitPrice: unitPriceDecimal.toNumber(),
+          discount: discountDecimal.toNumber(),
           taxAmount: 0,
-          netAmount,
+          netAmount: netAmountDecimal.toNumber(),
           status: ChargeStatus.DRAFT,
           createdById: authUserId,
         },

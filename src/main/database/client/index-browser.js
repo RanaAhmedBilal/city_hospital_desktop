@@ -202,6 +202,17 @@ exports.Prisma.PatientScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
+exports.Prisma.PatientAllergyScalarFieldEnum = {
+  id: 'id',
+  patientId: 'patientId',
+  allergenName: 'allergenName',
+  allergenType: 'allergenType',
+  severity: 'severity',
+  reaction: 'reaction',
+  recordedAt: 'recordedAt',
+  recordedById: 'recordedById'
+};
+
 exports.Prisma.DepartmentScalarFieldEnum = {
   id: 'id',
   code: 'code',
@@ -321,6 +332,60 @@ exports.Prisma.InvestigationScalarFieldEnum = {
   isActive: 'isActive',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
+};
+
+exports.Prisma.LabCatalogItemScalarFieldEnum = {
+  id: 'id',
+  code: 'code',
+  name: 'name',
+  category: 'category',
+  defaultFee: 'defaultFee',
+  sampleType: 'sampleType',
+  containerType: 'containerType',
+  tatHours: 'tatHours',
+  isActive: 'isActive',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.LabOrderScalarFieldEnum = {
+  id: 'id',
+  orderNo: 'orderNo',
+  visitId: 'visitId',
+  patientId: 'patientId',
+  doctorId: 'doctorId',
+  prescriptionId: 'prescriptionId',
+  invoiceId: 'invoiceId',
+  status: 'status',
+  notes: 'notes',
+  createdById: 'createdById',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.LabSpecimenScalarFieldEnum = {
+  id: 'id',
+  labOrderId: 'labOrderId',
+  barcode: 'barcode',
+  specimenType: 'specimenType',
+  containerType: 'containerType',
+  status: 'status',
+  collectedAt: 'collectedAt',
+  collectedById: 'collectedById',
+  notes: 'notes'
+};
+
+exports.Prisma.LabOrderItemScalarFieldEnum = {
+  id: 'id',
+  labOrderId: 'labOrderId',
+  testCode: 'testCode',
+  testName: 'testName',
+  category: 'category',
+  fee: 'fee',
+  status: 'status',
+  resultValue: 'resultValue',
+  referenceRange: 'referenceRange',
+  unit: 'unit'
 };
 
 exports.Prisma.PrescriptionScalarFieldEnum = {
@@ -563,6 +628,20 @@ exports.BloodGroup = exports.$Enums.BloodGroup = {
   UNKNOWN: 'UNKNOWN'
 };
 
+exports.AllergyType = exports.$Enums.AllergyType = {
+  DRUG: 'DRUG',
+  FOOD: 'FOOD',
+  ENVIRONMENTAL: 'ENVIRONMENTAL',
+  OTHER: 'OTHER'
+};
+
+exports.AllergySeverity = exports.$Enums.AllergySeverity = {
+  MILD: 'MILD',
+  MODERATE: 'MODERATE',
+  SEVERE: 'SEVERE',
+  ANAPHYLACTIC: 'ANAPHYLACTIC'
+};
+
 exports.VisitType = exports.$Enums.VisitType = {
   NEW_CONSULTATION: 'NEW_CONSULTATION',
   FOLLOW_UP: 'FOLLOW_UP',
@@ -592,6 +671,21 @@ exports.ClinicalRecordStatus = exports.$Enums.ClinicalRecordStatus = {
   DRAFT: 'DRAFT',
   FINALIZED: 'FINALIZED',
   AMENDED: 'AMENDED'
+};
+
+exports.LabOrderStatus = exports.$Enums.LabOrderStatus = {
+  ORDERED: 'ORDERED',
+  SPECIMEN_COLLECTED: 'SPECIMEN_COLLECTED',
+  IN_PROGRESS: 'IN_PROGRESS',
+  COMPLETED: 'COMPLETED',
+  CANCELLED: 'CANCELLED'
+};
+
+exports.SpecimenStatus = exports.$Enums.SpecimenStatus = {
+  PENDING: 'PENDING',
+  COLLECTED: 'COLLECTED',
+  RECEIVED: 'RECEIVED',
+  REJECTED: 'REJECTED'
 };
 
 exports.FoodRelation = exports.$Enums.FoodRelation = {
@@ -655,6 +749,7 @@ exports.Prisma.ModelName = {
   RolePermission: 'RolePermission',
   PanelClient: 'PanelClient',
   Patient: 'Patient',
+  PatientAllergy: 'PatientAllergy',
   Department: 'Department',
   Doctor: 'Doctor',
   Visit: 'Visit',
@@ -663,6 +758,10 @@ exports.Prisma.ModelName = {
   ConsultationAmendment: 'ConsultationAmendment',
   Medicine: 'Medicine',
   Investigation: 'Investigation',
+  LabCatalogItem: 'LabCatalogItem',
+  LabOrder: 'LabOrder',
+  LabSpecimen: 'LabSpecimen',
+  LabOrderItem: 'LabOrderItem',
   Prescription: 'Prescription',
   PrescriptionItem: 'PrescriptionItem',
   PrescriptionInvestigation: 'PrescriptionInvestigation',

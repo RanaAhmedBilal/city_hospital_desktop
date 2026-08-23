@@ -519,19 +519,14 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
         visitId: visit.id,
         patientId: patient.id,
         tests: selectedTests,
-        sampleDetails: {
-          sampleType,
-          containerType,
-          barcode: sampleBarcode,
-          collectionNotes: collectionNotes.trim() || undefined,
-        },
+        notes: collectionNotes.trim() || undefined,
       };
 
       const res = await invokeIpc<any>('lab:order-and-create-bill', payload);
       if (res.success && res.data) {
         setSuccessResult({
           invoice: res.data.invoice,
-          barcode: res.data.sampleRecord?.barcode || sampleBarcode,
+          barcode: res.data.sampleRecord?.barcode || '',
         });
         setPayAmount(String(res.data.invoice?.netTotal || 0));
         setSelectedTests([]);
@@ -677,9 +672,9 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
             <FlaskConical size={22} color="var(--primary-400)" />
           </div>
           <div>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Laboratory Orders & Diagnostic Sampling</h2>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 800 }}>Laboratory Orders & Diagnostic Billing</h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Manage active prescribed investigations, collect phlebotomy samples, and review past test history
+              Manage active prescribed investigations, generate diagnostic lab bills, and review past test history
             </p>
           </div>
         </div>
@@ -714,7 +709,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
             }}
           >
             <FlaskConical size={16} />
-            <span>Active Sampling Workstation</span>
+            <span>Active Lab Workstation</span>
             {patient && visit && (
               <span
                 style={{
@@ -1083,73 +1078,13 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                   </div>
                 </div>
 
-                {/* Right: Sample Collection & Order Summary */}
+                {/* Right: Order Summary & Billing Card */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {/* Sample Collection Details */}
                   <div className="card">
-                    <h3 style={{ fontSize: '1.05rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Tag size={16} color="var(--primary-400)" />
-                      <span>Sample Collection Details</span>
-                    </h3>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                        <div>
-                          <label className="form-label">Primary Sample Type</label>
-                          <select
-                            className="select"
-                            value={sampleType}
-                            onChange={(e) => setSampleType(e.target.value)}
-                          >
-                            <option value="Whole Blood / Serum">Whole Blood / Serum</option>
-                            <option value="Plasma (Fluoride / EDTA)">Plasma (Fluoride)</option>
-                            <option value="Mid-stream Urine">Mid-stream Urine</option>
-                            <option value="Stool Specimen">Stool Specimen</option>
-                            <option value="Throat / Nasal Swab">Throat / Nasal Swab</option>
-                            <option value="Diagnostic Imaging / ECG">Diagnostic Imaging / ECG</option>
-                          </select>
-                        </div>
-
-                        <div>
-                          <label className="form-label">Sample Tube / Container</label>
-                          <input
-                            type="text"
-                            className="input"
-                            value={containerType}
-                            onChange={(e) => setContainerType(e.target.value)}
-                            placeholder="e.g. Purple EDTA / Red Gel"
-                          />
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="form-label">Sample Accession / Barcode #</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={sampleBarcode}
-                          onChange={(e) => setSampleBarcode(e.target.value)}
-                        />
-                      </div>
-
-                      <div>
-                        <label className="form-label">Phlebotomy / Collection Notes</label>
-                        <input
-                          type="text"
-                          className="input"
-                          value={collectionNotes}
-                          onChange={(e) => setCollectionNotes(e.target.value)}
-                          placeholder="e.g. Fasting sample taken, no hemolysis"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Selected Tests Cart & Bill Generation */}
-                  <div className="card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800 }}>
-                        Selected Tests ({selectedTests.length})
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Tag size={18} color="var(--primary-400)" />
+                        <span>Order Summary & Lab Billing</span>
                       </h3>
                       {selectedTests.length > 0 && (
                         <button
@@ -1163,42 +1098,60 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                       )}
                     </div>
 
-                    <div style={{ minHeight: '130px', maxHeight: '200px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '1rem' }}>
-                      {selectedTests.length > 0 ? (
-                        selectedTests.map((t, idx) => (
-                          <div
-                            key={idx}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              padding: '0.4rem 0.6rem',
-                              background: 'var(--bg-surface-elevated)',
-                              borderRadius: 'var(--radius-sm)',
-                              fontSize: '0.82rem',
-                            }}
-                          >
-                            <div>
-                              <div style={{ fontWeight: 700 }}>{t.name}</div>
-                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{t.category}</div>
+                    {/* Selected Tests List */}
+                    <div style={{ marginBottom: '0.85rem' }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                        Selected Tests ({selectedTests.length})
+                      </div>
+                      <div style={{ minHeight: '110px', maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {selectedTests.length > 0 ? (
+                          selectedTests.map((t, idx) => (
+                            <div
+                              key={idx}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                padding: '0.4rem 0.6rem',
+                                background: 'var(--bg-surface-elevated)',
+                                borderRadius: 'var(--radius-sm)',
+                                fontSize: '0.82rem',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 700 }}>{t.name}</div>
+                                <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>{t.category}</div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                                <span style={{ fontWeight: 800 }}>Rs. {t.fee}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => setSelectedTests(selectedTests.filter((_, i) => i !== idx))}
+                                  style={{ color: 'var(--accent-rose)', background: 'transparent', border: 'none', cursor: 'pointer' }}
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </div>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                              <span style={{ fontWeight: 800 }}>Rs. {t.fee}</span>
-                              <button
-                                type="button"
-                                onClick={() => setSelectedTests(selectedTests.filter((_, i) => i !== idx))}
-                                style={{ color: 'var(--accent-rose)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </div>
+                          ))
+                        ) : (
+                          <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '1.5rem 1rem', fontSize: '0.82rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)' }}>
+                            No tests selected yet. Click any test from catalog to select.
                           </div>
-                        ))
-                      ) : (
-                        <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: '2rem 1rem', fontSize: '0.82rem' }}>
-                          No tests selected yet. Click any test from catalog or auto-select prescribed tests.
-                        </div>
-                      )}
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Order Notes & Remarks Input */}
+                    <div style={{ marginBottom: '1rem' }}>
+                      <label className="form-label">Order Notes & Remarks (Optional)</label>
+                      <input
+                        type="text"
+                        className="input"
+                        value={collectionNotes}
+                        onChange={(e) => setCollectionNotes(e.target.value)}
+                        placeholder="e.g. STAT urgent, fasting required, routine panel"
+                      />
                     </div>
 
                     {/* Total Summary */}
@@ -1220,7 +1173,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                       style={{ width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '0.5rem' }}
                     >
                       <FlaskConical size={18} />
-                      <span>{submitting ? 'Generating Lab Bill...' : `Collect Sample & Generate Bill (Rs. ${totalBillAmount})`}</span>
+                      <span>{submitting ? 'Generating Lab Bill...' : `Generate Lab Order & Bill (Rs. ${totalBillAmount})`}</span>
                     </button>
                   </div>
                 </div>
@@ -1269,13 +1222,13 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
               }}
             >
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Pending Sampling
+                Pending Billing
               </div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--rose-400, #fb7185)', marginTop: '0.2rem' }}>
                 {pendingCount}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Awaiting sample collection & bill
+                Awaiting lab order & bill
               </div>
             </div>
 
@@ -1291,13 +1244,13 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
               }}
             >
               <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Sampled - Unpaid
+                Billed - Unpaid
               </div>
               <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--amber-400, #fbbf24)', marginTop: '0.2rem' }}>
                 {sampledUnpaidCount}
               </div>
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
-                Sample collected, payment pending
+                Bill generated, payment pending
               </div>
             </div>
 
@@ -1373,7 +1326,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                   {[
                     { key: 'ALL', label: `All (${totalCount})` },
                     { key: 'PENDING', label: `Pending (${pendingCount})` },
-                    { key: 'SAMPLED', label: `Sampled (${sampledUnpaidCount})` },
+                    { key: 'SAMPLED', label: `Billed Unpaid (${sampledUnpaidCount})` },
                     { key: 'PAID', label: `Paid (${paidCount})` },
                   ].map((btn) => (
                     <button

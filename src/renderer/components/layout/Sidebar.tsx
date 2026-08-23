@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'patients', label: 'Patients', icon: Users, show: hasPermission('patient:read') },
     { id: 'visits', label: 'OPD Queue', icon: CalendarClock, show: hasPermission('visit:read') },
     { id: 'vitals', label: 'Triage / Vitals', icon: Activity, show: hasPermission('vitals:read') },
-    { id: 'lab', label: 'Lab Orders & Sampling', icon: FlaskConical, show: hasPermission('billing:create_charge') || hasPermission('visit:read') },
+    { id: 'lab', label: 'Lab Orders & Billing', icon: FlaskConical, show: hasPermission('billing:create_charge') || hasPermission('visit:read') },
     { id: 'billing', label: 'Billing & Cashier', icon: Receipt, show: hasPermission('billing:create_invoice') || hasPermission('billing:create_charge') || hasPermission('billing:print_slip') },
     { id: 'reports', label: 'Reports & Analytics', icon: BarChart3, show: hasRole(RoleType.ADMINISTRATOR) },
     { id: 'masters', label: 'Master Data & Admin', icon: Settings, show: hasPermission('admin:manage_masters') || hasPermission('admin:manage_users') },

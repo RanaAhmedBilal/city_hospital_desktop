@@ -25,6 +25,7 @@ export function registerIpcHandlers() {
     options?: {
       permission?: string;
       schema?: any;
+      allowAnonymous?: boolean;
     }
   ) {
     ipcMain.handle(channel, async (_event, req: { token?: string; payload?: T }) => {
@@ -33,8 +34,13 @@ export function registerIpcHandlers() {
         if (options?.permission) {
           if (!req?.token) throw new Error('Authentication required.');
           user = AuthService.requirePermission(req.token, options.permission);
-        } else if (req?.token) {
-          user = AuthService.getSession(req.token);
+        } else {
+          if (req?.token) {
+            user = AuthService.getSession(req.token);
+          }
+          if (!user && !options?.allowAnonymous) {
+            throw new Error('Authentication required. Please log in.');
+          }
         }
 
         let parsedPayload = req?.payload;
@@ -63,7 +69,7 @@ export function registerIpcHandlers() {
   // ----------------------------------------------------
   handle('auth:login', async (payload) => {
     return await AuthService.login(payload.username, payload.password);
-  }, { schema: schemas.LoginSchema });
+  }, { schema: schemas.LoginSchema, allowAnonymous: true });
 
   handle('auth:logout', async (_, user) => {
     // handled by token lookup in logout
@@ -95,6 +101,19 @@ export function registerIpcHandlers() {
   handle('patients:update', async (payload, user) => {
     return await PatientService.updatePatient(payload.id, payload, user.id);
   }, { permission: 'patient:update_demographics' });
+
+  handle('patients:get-allergies', async (payload) => {
+    return await PatientService.getPatientAllergies(payload.patientId);
+  }, { permission: 'patient:read' });
+
+  handle('patients:add-allergy', async (payload, user) => {
+    return await PatientService.addPatientAllergy(payload, user.id);
+  }, { permission: 'patient:update_demographics', schema: schemas.AddPatientAllergySchema });
+
+  handle('patients:remove-allergy', async (payload, user) => {
+    return await PatientService.removePatientAllergy(payload.allergyId, user.id);
+  }, { permission: 'patient:update_demographics' });
+
 
   // ----------------------------------------------------
   // 3. VISITS & QUEUE
@@ -154,7 +173,7 @@ export function registerIpcHandlers() {
 
   handle('medicines:search', async (payload) => {
     return await ConfigService.searchMedicines(payload?.query || '', payload?.limit);
-  });
+  }, { permission: 'patient:read' });
 
   handle('medicines:save', async (payload, user) => {
     return await ConfigService.saveMedicine(payload, user.id);
@@ -162,7 +181,7 @@ export function registerIpcHandlers() {
 
   handle('investigations:search', async (payload) => {
     return await ConfigService.searchInvestigations(payload?.query || '', payload?.limit);
-  });
+  }, { permission: 'patient:read' });
 
   handle('investigations:save', async (payload, user) => {
     return await ConfigService.saveInvestigation(payload, user.id);
@@ -220,19 +239,19 @@ export function registerIpcHandlers() {
 
   handle('print:direct', async (payload) => {
     return await PrintService.printDirect(payload.html, payload.options);
-  });
+  }, { permission: 'prescription:print' });
 
   handle('print:generate-pdf', async (payload) => {
     const pdfBuffer = await PrintService.generatePdf(payload.html);
     return pdfBuffer.toString('base64');
-  });
+  }, { permission: 'prescription:print' });
 
   // ----------------------------------------------------
   // 9. LAB ORDERS & DIAGNOSTIC SAMPLING
   // ----------------------------------------------------
   handle('lab:get-catalog', async () => {
     return await LabService.getLabCatalog();
-  });
+  }, { permission: 'patient:read' });
 
   handle('lab:save-catalog-item', async (payload, user) => {
     return await LabService.saveLabCatalogItem(payload, user.id);
@@ -248,11 +267,11 @@ export function registerIpcHandlers() {
 
   handle('lab:get-prescribed-for-visit', async (payload) => {
     return await LabService.getPrescribedTestsForVisit(payload.visitId);
-  });
+  }, { permission: 'patient:read' });
 
   handle('lab:get-history', async (payload) => {
     return await LabService.getLabHistory(payload?.query);
-  });
+  }, { permission: 'patient:read' });
 
   // ----------------------------------------------------
   // 10. CONFIGURATION & MASTER DATA

@@ -4,10 +4,50 @@ import { RoleType, ROLE_PERMISSIONS } from '../../shared/constants/roles';
 import { AuthUser, LoginResponse } from '../../shared/types';
 import { AuditService } from './audit.service';
 
+interface SessionRecord {
+  user: AuthUser;
+  createdAt: Date;
+  expiresAt: Date;
+  lastActivityAt: Date;
+}
+
 // In-memory active session tokens for desktop IPC security
-const activeSessions = new Map<string, AuthUser>();
+const DEFAULT_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const CLEANUP_INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+
+const activeSessions = new Map<string, SessionRecord>();
+let cleanupIntervalTimer: NodeJS.Timeout | null = null;
 
 export class AuthService {
+  /**
+   * Start periodic background timer to evict expired session tokens
+   */
+  static startSessionCleanupTimer(intervalMs: number = CLEANUP_INTERVAL_MS): void {
+    if (cleanupIntervalTimer) return;
+    cleanupIntervalTimer = setInterval(() => {
+      AuthService.cleanExpiredSessions();
+    }, intervalMs);
+
+    if (cleanupIntervalTimer.unref) {
+      cleanupIntervalTimer.unref();
+    }
+  }
+
+  /**
+   * Evict all expired session tokens from memory
+   */
+  static cleanExpiredSessions(): number {
+    const now = new Date();
+    let evictedCount = 0;
+    for (const [token, record] of activeSessions.entries()) {
+      if (record.expiresAt <= now) {
+        activeSessions.delete(token);
+        evictedCount++;
+      }
+    }
+    return evictedCount;
+  }
+
   static async login(username: string, passwordPlain: string, ipAddress?: string): Promise<LoginResponse> {
     const user = await prisma.user.findUnique({
       where: { username },
@@ -71,14 +111,25 @@ export class AuthService {
       doctorId: user.doctorId,
     };
 
-    // Generate random secure session token
-    const token = `sess_${user.id}_${Date.now()}_${Math.random().toString(36).substring(2)}`;
-    activeSessions.set(token, authUser);
+    // Generate random secure session token with expiration timestamp
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + DEFAULT_SESSION_TTL_MS);
+    const token = `sess_${user.id}_${now.getTime()}_${Math.random().toString(36).substring(2)}`;
+
+    activeSessions.set(token, {
+      user: authUser,
+      createdAt: now,
+      expiresAt,
+      lastActivityAt: now,
+    });
+
+    // Ensure periodic cleanup timer is running
+    AuthService.startSessionCleanupTimer();
 
     // Update last login
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLoginAt: new Date() },
+      data: { lastLoginAt: now },
     });
 
     await AuditService.log({
@@ -95,14 +146,14 @@ export class AuthService {
   }
 
   static async logout(token: string): Promise<boolean> {
-    const session = activeSessions.get(token);
-    if (session) {
+    const record = activeSessions.get(token);
+    if (record) {
       await AuditService.log({
-        userId: session.id,
-        userName: session.username,
+        userId: record.user.id,
+        userName: record.user.username,
         action: 'LOGOUT',
         entityType: 'User',
-        entityId: session.id,
+        entityId: record.user.id,
       });
       activeSessions.delete(token);
     }
@@ -110,13 +161,26 @@ export class AuthService {
   }
 
   static getSession(token: string): AuthUser | null {
-    return activeSessions.get(token) || null;
+    if (!token) return null;
+    const record = activeSessions.get(token);
+    if (!record) return null;
+
+    const now = new Date();
+    if (record.expiresAt <= now) {
+      activeSessions.delete(token);
+      return null;
+    }
+
+    // Refresh sliding session activity & expiry
+    record.lastActivityAt = now;
+    record.expiresAt = new Date(now.getTime() + DEFAULT_SESSION_TTL_MS);
+    return record.user;
   }
 
   static requirePermission(token: string, permissionCode: string): AuthUser {
-    const user = activeSessions.get(token);
+    const user = AuthService.getSession(token);
     if (!user) {
-      throw new Error('Authentication required. Please log in.');
+      throw new Error('Authentication required or session expired. Please log in.');
     }
     if (!user.permissions.includes(permissionCode) && !user.roles.includes(RoleType.ADMINISTRATOR)) {
       throw new Error(`Forbidden: You do not have permission (${permissionCode}) to perform this action.`);

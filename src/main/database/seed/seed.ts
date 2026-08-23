@@ -229,6 +229,56 @@ async function main() {
     }
   }
 
+  // Create Doctor user accounts
+  if (createdDoctors.length > 0) {
+    const docPasswordHash = await bcrypt.hash('doctor123', 10);
+    const adminRole = await prisma.role.findUnique({ where: { name: RoleType.ADMINISTRATOR } });
+
+    const doctorUsernames: Record<string, string> = {
+      'Dr. Sarah Jenkins': 'dr.sarah',
+      'Dr. Ahmed Khan': 'dr.ahmed',
+      'Dr. Zainab Tariq': 'dr.zainab',
+      'Dr. Usman Ali': 'dr.usman',
+      'Dr. Ayesha Malik': 'dr.ayesha',
+    };
+
+    for (const doc of createdDoctors) {
+      const username = doctorUsernames[doc.name] || `dr.${doc.name.toLowerCase().replace(/[^a-z]/g, '')}`;
+      const docUser = await prisma.user.upsert({
+        where: { doctorId: doc.id },
+        update: {
+          fullName: doc.name,
+          passwordHash: docPasswordHash,
+          isActive: true,
+        },
+        create: {
+          username,
+          fullName: doc.name,
+          passwordHash: docPasswordHash,
+          email: doc.email,
+          doctorId: doc.id,
+          isActive: true,
+        },
+      });
+
+      if (adminRole) {
+        await prisma.userRole.upsert({
+          where: {
+            userId_roleId: {
+              userId: docUser.id,
+              roleId: adminRole.id,
+            },
+          },
+          update: {},
+          create: {
+            userId: docUser.id,
+            roleId: adminRole.id,
+          },
+        });
+      }
+    }
+  }
+
   // 6. Panel Clients
   const panelData = [
     {

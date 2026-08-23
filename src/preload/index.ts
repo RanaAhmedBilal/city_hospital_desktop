@@ -1,32 +1,39 @@
 import { contextBridge, ipcRenderer } from 'electron';
 
+// In-memory secure closure state (never persisted to unencrypted localStorage on disk)
+let activeSessionToken: string | null = null;
+let activeSessionUser: any = null;
+
 const api = {
-  // Generic invoker with session token propagation
+  // Generic invoker with session token propagation from in-memory state
   invoke: async <T = any>(channel: string, payload?: any): Promise<{ success: boolean; data?: T; error?: string }> => {
-    const token = localStorage.getItem('city_hospital_auth_token');
-    return await ipcRenderer.invoke(channel, { token, payload });
+    return await ipcRenderer.invoke(channel, { token: activeSessionToken, payload });
   },
 
   // Auth Helper
   login: async (credentials: any) => {
     const res = await ipcRenderer.invoke('auth:login', { payload: credentials });
     if (res.success && res.data?.token) {
-      localStorage.setItem('city_hospital_auth_token', res.data.token);
-      localStorage.setItem('city_hospital_user', JSON.stringify(res.data.user));
+      activeSessionToken = res.data.token;
+      activeSessionUser = res.data.user;
     }
     return res;
   },
 
   logout: async () => {
-    const token = localStorage.getItem('city_hospital_auth_token');
-    await ipcRenderer.invoke('auth:logout', { token });
-    localStorage.removeItem('city_hospital_auth_token');
-    localStorage.removeItem('city_hospital_user');
+    if (activeSessionToken) {
+      await ipcRenderer.invoke('auth:logout', { token: activeSessionToken });
+    }
+    activeSessionToken = null;
+    activeSessionUser = null;
   },
 
   getCurrentUser: () => {
-    const stored = localStorage.getItem('city_hospital_user');
-    return stored ? JSON.parse(stored) : null;
+    return activeSessionUser;
+  },
+
+  getToken: () => {
+    return activeSessionToken;
   },
 };
 

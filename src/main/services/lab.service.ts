@@ -42,18 +42,53 @@ export const STANDARD_LAB_CATALOG: LabCatalogItem[] = [
   { code: 'USG_ABD', name: 'Ultrasound Abdomen & Pelvis', category: 'Ultrasound', defaultFee: 2200, sampleType: 'Diagnostic', containerType: 'Ultrasound Probe', tatHours: 2, isActive: true },
 ];
 
-let customLabCatalogStore: LabCatalogItem[] = [...STANDARD_LAB_CATALOG];
-
 export class LabService {
   /**
-   * Get list of active standard and custom lab catalog items
+   * Get list of active standard and custom lab catalog items from database
    */
   static async getLabCatalog(): Promise<LabCatalogItem[]> {
-    return customLabCatalogStore.filter((item) => item.isActive !== false);
+    let items = await prisma.labCatalogItem.findMany({
+      where: { isActive: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+
+    // Auto-seed standard lab catalog if table is empty
+    if (items.length === 0) {
+      await prisma.labCatalogItem.createMany({
+        data: STANDARD_LAB_CATALOG.map((item) => ({
+          code: item.code,
+          name: item.name,
+          category: item.category,
+          defaultFee: item.defaultFee,
+          sampleType: item.sampleType,
+          containerType: item.containerType,
+          tatHours: item.tatHours,
+          isActive: true,
+        })),
+        skipDuplicates: true,
+      });
+
+      items = await prisma.labCatalogItem.findMany({
+        where: { isActive: true },
+        orderBy: [{ category: 'asc' }, { name: 'asc' }],
+      });
+    }
+
+    return items.map((item) => ({
+      id: item.id,
+      code: item.code,
+      name: item.name,
+      category: item.category,
+      defaultFee: Number(item.defaultFee),
+      sampleType: item.sampleType,
+      containerType: item.containerType,
+      tatHours: item.tatHours,
+      isActive: item.isActive,
+    }));
   }
 
   /**
-   * Create or update a lab catalog item
+   * Create or update a lab catalog item in database
    */
   static async saveLabCatalogItem(itemData: Partial<LabCatalogItem>, authUserId?: string): Promise<LabCatalogItem[]> {
     if (!itemData.code || !itemData.name) {
@@ -62,34 +97,45 @@ export class LabService {
 
     const cleanCode = itemData.code.trim().toUpperCase();
 
-    const existingIdx = customLabCatalogStore.findIndex(
-      (c) => c.code.trim().toUpperCase() === cleanCode
-    );
+    const existing = await prisma.labCatalogItem.findUnique({
+      where: { code: cleanCode },
+    });
 
-    const updatedItem: LabCatalogItem = {
-      code: cleanCode,
-      name: itemData.name.trim(),
-      category: itemData.category?.trim() || 'General Pathology',
-      defaultFee: Number(itemData.defaultFee) || 500,
-      sampleType: itemData.sampleType?.trim() || 'Whole Blood / Serum',
-      containerType: itemData.containerType?.trim() || 'Purple EDTA / Red Gel',
-      tatHours: Number(itemData.tatHours) || 4,
-      isActive: itemData.isActive !== undefined ? Boolean(itemData.isActive) : true,
-    };
-
-    if (existingIdx >= 0) {
-      customLabCatalogStore[existingIdx] = updatedItem;
-    } else {
-      customLabCatalogStore.push(updatedItem);
-    }
+    const updatedItem = await prisma.labCatalogItem.upsert({
+      where: { code: cleanCode },
+      update: {
+        name: itemData.name.trim(),
+        category: itemData.category?.trim() || 'General Pathology',
+        defaultFee: Number(itemData.defaultFee) || 500,
+        sampleType: itemData.sampleType?.trim() || 'Whole Blood / Serum',
+        containerType: itemData.containerType?.trim() || 'Purple EDTA / Red Gel',
+        tatHours: Number(itemData.tatHours) || 4,
+        isActive: itemData.isActive !== undefined ? Boolean(itemData.isActive) : true,
+      },
+      create: {
+        code: cleanCode,
+        name: itemData.name.trim(),
+        category: itemData.category?.trim() || 'General Pathology',
+        defaultFee: Number(itemData.defaultFee) || 500,
+        sampleType: itemData.sampleType?.trim() || 'Whole Blood / Serum',
+        containerType: itemData.containerType?.trim() || 'Purple EDTA / Red Gel',
+        tatHours: Number(itemData.tatHours) || 4,
+        isActive: itemData.isActive !== undefined ? Boolean(itemData.isActive) : true,
+      },
+    });
 
     if (authUserId) {
       await AuditService.log({
         userId: authUserId,
-        action: existingIdx >= 0 ? 'UPDATE_LAB_CATALOG_ITEM' : 'CREATE_LAB_CATALOG_ITEM',
+        action: existing ? 'UPDATE_LAB_CATALOG_ITEM' : 'CREATE_LAB_CATALOG_ITEM',
         entityType: 'LabCatalogItem',
         entityId: cleanCode,
-        newValue: updatedItem,
+        newValue: {
+          code: updatedItem.code,
+          name: updatedItem.name,
+          defaultFee: Number(updatedItem.defaultFee),
+          category: updatedItem.category,
+        },
       });
     }
 
@@ -97,11 +143,15 @@ export class LabService {
   }
 
   /**
-   * Delete or deactivate a lab catalog item
+   * Delete or deactivate a lab catalog item in database
    */
   static async deleteLabCatalogItem(code: string, authUserId?: string): Promise<LabCatalogItem[]> {
     const cleanCode = code.trim().toUpperCase();
-    customLabCatalogStore = customLabCatalogStore.filter((c) => c.code.trim().toUpperCase() !== cleanCode);
+
+    await prisma.labCatalogItem.update({
+      where: { code: cleanCode },
+      data: { isActive: false },
+    });
 
     if (authUserId) {
       await AuditService.log({
@@ -121,6 +171,8 @@ export class LabService {
   static async orderLabTestsAndCreateBill(data: {
     visitId: string;
     patientId: string;
+    prescriptionId?: string;
+    notes?: string;
     tests: Array<{
       code?: string;
       name: string;
@@ -128,8 +180,8 @@ export class LabService {
       sampleType?: string;
       fee: number;
     }>;
-    sampleDetails: {
-      sampleType: string;
+    sampleDetails?: {
+      sampleType?: string;
       containerType?: string;
       barcode?: string;
       collectionNotes?: string;
@@ -137,7 +189,7 @@ export class LabService {
   }, authUserId: string): Promise<{
     invoice: InvoiceDto;
     charges: VisitChargeDto[];
-    sampleRecord: {
+    sampleRecord?: {
       barcode: string;
       sampleType: string;
       collectedAt: string;
@@ -155,37 +207,46 @@ export class LabService {
       });
 
       if (!visit) throw new Error('Patient visit encounter not found.');
-
-      // Check for panel client discount
-      let panelDiscountPercent = 0;
-      if (visit.patient.panelClient && Number(visit.patient.panelClient.discountPercent) > 0) {
-        panelDiscountPercent = Number(visit.patient.panelClient.discountPercent);
+      if (!visit.patient || !visit.patient.isActive) {
+        throw new Error('Patient is inactive or deactivated. Cannot order lab tests for an inactive patient.');
       }
 
-      // Generate barcode / Sample accession number
-      const sampleBarcode = data.sampleDetails.barcode?.trim() || `SMP-${Date.now().toString().slice(-6)}`;
+      // Check for panel client discount
+      let panelDiscountPercent = new Decimal(0);
+      if (visit.patient.panelClient && new Decimal(visit.patient.panelClient.discountPercent).gt(0)) {
+        panelDiscountPercent = new Decimal(visit.patient.panelClient.discountPercent);
+      }
+
+      // Sample barcode (optional for manual sampling workflow)
+      const sampleBarcode = (data.sampleDetails && typeof data.sampleDetails.barcode === 'string' && data.sampleDetails.barcode.trim().length > 0)
+        ? data.sampleDetails.barcode.trim()
+        : null;
       const createdCharges: any[] = [];
       let subtotal = new Decimal(0);
       let totalDiscount = new Decimal(0);
 
-      // 2. Create VisitCharge for each lab test
+      // 2. Create VisitCharge for each lab test using 4 decimal places precision
       for (const t of data.tests) {
-        const unitPrice = new Decimal(t.fee || 0);
+        const unitPrice = new Decimal(t.fee || 0).toDecimalPlaces(4);
         let discount = new Decimal(0);
-        if (panelDiscountPercent > 0) {
-          discount = unitPrice.times(panelDiscountPercent).dividedBy(100);
+        if (panelDiscountPercent.gt(0)) {
+          discount = unitPrice.times(panelDiscountPercent).dividedBy(100).toDecimalPlaces(4);
         }
 
-        const netAmount = Decimal.max(0, unitPrice.minus(discount));
-        subtotal = subtotal.plus(unitPrice);
-        totalDiscount = totalDiscount.plus(discount);
+        const netAmount = Decimal.max(0, unitPrice.minus(discount)).toDecimalPlaces(4);
+        subtotal = subtotal.plus(unitPrice).toDecimalPlaces(4);
+        totalDiscount = totalDiscount.plus(discount).toDecimalPlaces(4);
+
+        const chargeDesc = (data.sampleDetails && data.sampleDetails.sampleType) 
+          ? `Lab: ${t.name} (Sample: ${data.sampleDetails.sampleType})`
+          : `Lab Investigation: ${t.name}`;
 
         const charge = await tx.visitCharge.create({
           data: {
             visitId: data.visitId,
             patientId: data.patientId,
             serviceName: `Lab: ${t.name}`,
-            description: `Sample: ${data.sampleDetails.sampleType} [Barcode: ${sampleBarcode}]`,
+            description: chargeDesc,
             quantity: 1,
             unitPrice: unitPrice.toNumber(),
             discount: discount.toNumber(),
@@ -199,10 +260,14 @@ export class LabService {
         createdCharges.push(charge);
       }
 
-      const netTotal = Decimal.max(0, subtotal.minus(totalDiscount));
+      const netTotal = Decimal.max(0, subtotal.minus(totalDiscount)).toDecimalPlaces(4);
 
       // 3. Create a dedicated UNPAID / FINALIZED Lab Invoice
       const invoiceNumber = await NumberingService.getNextNumber('INVOICE', tx);
+      const collectionNotes = data.notes || data.sampleDetails?.collectionNotes || null;
+      const invoiceNotes = collectionNotes 
+        ? `Laboratory & Diagnostic Investigations. ${collectionNotes}` 
+        : 'Laboratory & Diagnostic Investigations';
 
       const invoice = await tx.invoice.create({
         data: {
@@ -218,13 +283,48 @@ export class LabService {
           paidTotal: 0,
           balanceTotal: netTotal.toNumber(),
           status: InvoiceStatus.FINALIZED, // Unpaid bill
-          notes: `Laboratory & Diagnostic Investigations (Sample Barcode: ${sampleBarcode}). ${data.sampleDetails.collectionNotes || ''}`.trim(),
+          notes: invoiceNotes,
           createdById: authUserId,
           finalizedAt: new Date(),
         },
       });
 
-      // 4. Create Invoice Items and mark charges as BILLED
+      // 4. Create Relational LabOrder and optional LabSpecimen entities
+      const orderNo = `LBO-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+      const hasSpecimenInfo = Boolean(data.sampleDetails && (data.sampleDetails.sampleType || sampleBarcode));
+
+      await tx.labOrder.create({
+        data: {
+          orderNo,
+          visitId: data.visitId,
+          patientId: data.patientId,
+          doctorId: visit.doctorId,
+          invoiceId: invoice.id,
+          prescriptionId: data.prescriptionId || null,
+          status: 'ORDERED',
+          notes: collectionNotes,
+          createdById: authUserId,
+          specimens: hasSpecimenInfo ? {
+            create: {
+              barcode: sampleBarcode || `SMP-${Date.now().toString().slice(-6)}`,
+              specimenType: data.sampleDetails?.sampleType || 'General Specimen',
+              containerType: data.sampleDetails?.containerType || null,
+              status: 'COLLECTED',
+              collectedById: authUserId,
+            },
+          } : undefined,
+          items: {
+            create: data.tests.map((t) => ({
+              testCode: t.code || t.name.toUpperCase().replace(/\s+/g, '_'),
+              testName: t.name,
+              category: t.category || 'General Pathology',
+              fee: new Decimal(t.fee).toNumber(),
+            })),
+          },
+        },
+      });
+
+      // 5. Create Invoice Items and mark charges as BILLED
       for (const c of createdCharges) {
         await tx.invoiceItem.create({
           data: {
@@ -253,7 +353,7 @@ export class LabService {
         });
       }
 
-      // 5. Audit Log
+      // 6. Audit Log
       await AuditService.log({
         userId: authUserId,
         action: 'ORDER_LAB_TESTS',
@@ -261,6 +361,7 @@ export class LabService {
         entityId: invoice.id,
         newValue: {
           invoiceNumber: invoice.invoiceNumber,
+          orderNo,
           testsCount: data.tests.length,
           sampleBarcode,
           netTotal: invoice.netTotal,
@@ -318,11 +419,11 @@ export class LabService {
           createdById: c.createdById,
           createdAt: c.createdAt.toISOString(),
         })),
-        sampleRecord: {
+        sampleRecord: sampleBarcode ? {
           barcode: sampleBarcode,
-          sampleType: data.sampleDetails.sampleType,
+          sampleType: data.sampleDetails?.sampleType || 'General Specimen',
           collectedAt: new Date().toISOString(),
-        },
+        } : undefined,
       };
     });
   }
@@ -375,8 +476,11 @@ export class LabService {
         visit: {
           include: {
             patient: true,
+            labOrders: {
+              include: { specimens: true },
+            },
             invoices: {
-              include: { items: true },
+              include: { items: true, labOrders: { include: { specimens: true } } },
             },
           },
         },
@@ -390,13 +494,17 @@ export class LabService {
       // Check if there is an invoice linked to this visit with lab items
       const labInvoice = rx.visit.invoices.find(
         (inv) =>
+          inv.labOrders?.length > 0 ||
           inv.notes?.toLowerCase().includes('sample barcode') ||
           inv.items.some((it) => it.serviceName.toLowerCase().includes('lab:'))
       );
 
-      // Extract sample barcode if available
+      // Extract sample barcode relationally (with regex fallback for legacy data)
       let sampleBarcode: string | null = null;
-      if (labInvoice && labInvoice.notes) {
+      const relationalLabOrder = rx.visit.labOrders?.find((lo) => lo.invoiceId === labInvoice?.id) || rx.visit.labOrders?.[0];
+      if (relationalLabOrder?.specimens && relationalLabOrder.specimens.length > 0) {
+        sampleBarcode = relationalLabOrder.specimens[0].barcode;
+      } else if (labInvoice && labInvoice.notes) {
         const match = labInvoice.notes.match(/Sample Barcode:\s*([^\)\.\,]+)/i);
         if (match) {
           sampleBarcode = match[1].trim();
