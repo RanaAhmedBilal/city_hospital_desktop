@@ -237,8 +237,8 @@ async function main() {
     const doctorUsernames: Record<string, string> = {
       'Dr. Sarah Jenkins': 'dr.sarah',
       'Dr. Ahmed Khan': 'dr.ahmed',
-      'Dr. Zainab Tariq': 'dr.zainab',
-      'Dr. Usman Ali': 'dr.usman',
+      'Dr. Emily Davis': 'dr.emily',
+      'Dr. Robert Chen': 'dr.robert',
       'Dr. Ayesha Malik': 'dr.ayesha',
     };
 
@@ -421,9 +421,6 @@ async function main() {
   // Generate historical visits spanning the last 30 days
   const now = new Date();
   const paymentMethodsList = ['CASH', 'CARD', 'BANK_TRANSFER', 'PANEL_CREDIT', 'ONLINE'];
-  let invSeq = 100;
-  let visitSeq = 100;
-  let recSeq = 100;
 
   for (let dayOffset = 30; dayOffset >= 0; dayOffset--) {
     const visitDate = new Date(now);
@@ -465,7 +462,7 @@ async function main() {
           discount: 0,
           netAmount: consultChargeNet,
           status: dayOffset % 4 === 0 ? 'DRAFT' : 'BILLED',
-          createdById: adminUserId || userFallbackId(),
+          createdById: adminUserId || 'default_admin_id',
         },
       });
 
@@ -490,7 +487,7 @@ async function main() {
             paidTotal: paidTotal,
             balanceTotal: balanceTotal,
             status: invStatus as any,
-            createdById: adminUserId || userFallbackId(),
+            createdById: adminUserId || 'default_admin_id',
             createdAt: visitDate,
           },
         });
@@ -521,7 +518,7 @@ async function main() {
             paymentMethod: payMethod as any,
             transactionReference: payMethod !== 'CASH' ? `TXN-${Date.now()}-${i}` : null,
             notes: 'Settlement at cashier counter',
-            receivedById: adminUserId || userFallbackId(),
+            receivedById: adminUserId || 'default_admin_id',
             receivedAt: visitDate,
           },
         });
@@ -530,10 +527,6 @@ async function main() {
   }
 
   console.log('City Hospital database seeded successfully with historical analytics & billing records!');
-}
-
-function userFallbackId() {
-  return 'default_admin_id';
 }
 
 main()

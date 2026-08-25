@@ -1,7 +1,7 @@
 import { prisma } from '../database/prisma';
 import { NumberingService } from './numbering.service';
 import { AuditService } from './audit.service';
-import { PatientDto } from '../../shared/types';
+import { PatientDto, PaginatedPatientsDto } from '../../shared/types';
 import { Gender, BloodGroup } from '../../shared/constants/enums';
 
 export class PatientService {
@@ -76,37 +76,47 @@ export class PatientService {
   }
 
   /**
-   * Multi-criteria patient search (MRN, Name, Phone, NIC, Employee ID)
+   * Multi-criteria patient search (MRN, Name, Phone, NIC, Employee ID) with pagination
    */
-  static async searchPatients(query: string, limit = 50): Promise<PatientDto[]> {
-    if (!query || !query.trim()) {
-      const recent = await prisma.patient.findMany({
+  static async searchPatients(query: string, page = 1, limit = 10): Promise<PaginatedPatientsDto> {
+    const pageNum = Math.max(1, Number(page) || 1);
+    const pageSize = Math.max(1, Math.min(100, Number(limit) || 10));
+    const skip = (pageNum - 1) * pageSize;
+
+    const q = query ? query.trim() : '';
+    const where: any = q
+      ? {
+          OR: [
+            { mrn: { contains: q, mode: 'insensitive' } },
+            { fullName: { contains: q, mode: 'insensitive' } },
+            { phone: { contains: q } },
+            { alternatePhone: { contains: q } },
+            { nic: { contains: q, mode: 'insensitive' } },
+            { employeeId: { contains: q, mode: 'insensitive' } },
+          ],
+        }
+      : {};
+
+    const [totalCount, patients] = await Promise.all([
+      prisma.patient.count({ where }),
+      prisma.patient.findMany({
+        where,
         orderBy: { createdAt: 'desc' },
-        take: limit,
+        skip,
+        take: pageSize,
         include: { panelClient: true },
-      });
-      return recent.map(this.formatPatient);
-    }
+      }),
+    ]);
 
-    const q = query.trim();
-    const patients = await prisma.patient.findMany({
-      where: {
-        OR: [
-          { mrn: { contains: q, mode: 'insensitive' } },
-          { fullName: { contains: q, mode: 'insensitive' } },
-          { phone: { contains: q } },
-          { alternatePhone: { contains: q } },
-          { nic: { contains: q, mode: 'insensitive' } },
-          { employeeId: { contains: q, mode: 'insensitive' } },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      include: { panelClient: true },
-    });
-
-    return patients.map(this.formatPatient);
+    return {
+      items: patients.map(this.formatPatient),
+      totalCount,
+      page: pageNum,
+      pageSize,
+      totalPages: Math.ceil(totalCount / pageSize) || 1,
+    };
   }
+
 
   /**
    * Get single patient by ID with full demographic and clinical overview

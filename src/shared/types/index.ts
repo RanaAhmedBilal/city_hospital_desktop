@@ -55,6 +55,14 @@ export interface PatientDto {
   notes: string | null;
 }
 
+export interface PaginatedPatientsDto {
+  items: PatientDto[];
+  totalCount: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
 export interface PanelClientDto {
   id: string;
   name: string;

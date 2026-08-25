@@ -3,8 +3,8 @@ import { useAuthStore } from '../../stores/authStore';
 import { Building2, Lock, User, KeyRound, AlertCircle, ArrowRight, Shield } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -39,12 +39,6 @@ export const LoginPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
-
-  const setDemoUser = (u: string, p: string) => {
-    setUsername(u);
-    setPassword(p);
-    setError(null);
   };
 
   return (
@@ -155,31 +149,6 @@ export const LoginPage: React.FC = () => {
             <ArrowRight size={16} />
           </button>
         </form>
-
-        {/* Quick Demo Role Switcher */}
-        <div style={{ marginTop: '2rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-subtle)' }}>
-          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.65rem' }}>
-            Quick Role Switcher (Pre-configured Users)
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.6rem' }}>
-            <button
-              type="button"
-              onClick={() => setDemoUser('admin', 'admin123')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.8rem', justifyContent: 'center', padding: '0.55rem' }}
-            >
-              👑 Administrator
-            </button>
-            <button
-              type="button"
-              onClick={() => setDemoUser('reception', 'reception123')}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.8rem', justifyContent: 'center', padding: '0.55rem' }}
-            >
-              📋 Receptionist
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );

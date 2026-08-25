@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useActivePatientStore } from '../../stores/activePatientStore';
 import { invokeIpc } from '../../lib/ipc';
-import { PatientDto, PanelClientDto } from '../../../shared/types';
+import { PatientDto, PanelClientDto, PaginatedPatientsDto } from '../../../shared/types';
 import { BloodGroupLabels } from '../../../shared/constants/enums';
 import { Modal } from '../../components/common/Modal';
 import {
@@ -10,10 +10,12 @@ import {
   UserCheck,
   FileText,
   AlertCircle,
-  Building,
   Check,
   Edit2,
-  Calendar,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
 } from 'lucide-react';
 
 interface PatientListPageProps {
@@ -30,13 +32,20 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(false);
 
-  // Registration Modal State
+  // Pagination State
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalCount, setTotalCount] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+
+  // Modal & Edit State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingPatient, setEditingPatient] = useState<PatientDto | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formSuccess, setFormSuccess] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const [formData, setFormData] = useState({
+  const initialFormData = {
     fullName: '',
     guardianName: '',
     age: '',
@@ -52,21 +61,36 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
     emergencyContactName: '',
     emergencyContactPhone: '',
     notes: '',
-  });
+  };
+
+  const [formData, setFormData] = useState(initialFormData);
 
   const { setActivePatient, patient: activePatient } = useActivePatientStore();
 
   useEffect(() => {
-    loadPatients();
+    loadPatients(searchQuery, page, pageSize);
     loadPanelClients();
   }, []);
 
-  const loadPatients = async (query = '') => {
+  const loadPatients = async (query = searchQuery, targetPage = page, targetLimit = pageSize) => {
     setLoading(true);
     try {
-      const res = await invokeIpc<PatientDto[]>('patients:search', { query, limit: 50 });
+      const res = await invokeIpc<PaginatedPatientsDto>('patients:search', {
+        query,
+        page: targetPage,
+        limit: targetLimit,
+      });
+
       if (res.success && res.data) {
-        setPatients(res.data);
+        setPatients(res.data.items);
+        setTotalCount(res.data.totalCount);
+        setPage(res.data.page);
+        setTotalPages(res.data.totalPages);
+      } else {
+        // Fallback for unexpected response shape
+        setPatients([]);
+        setTotalCount(0);
+        setTotalPages(1);
       }
     } catch (err) {
       console.error('Failed to search patients:', err);
@@ -84,10 +108,56 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    loadPatients(searchQuery);
+    setPage(1);
+    loadPatients(searchQuery, 1, pageSize);
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
+  const handlePageChange = (newPage: number) => {
+    if (newPage < 1 || newPage > totalPages || newPage === page) return;
+    setPage(newPage);
+    loadPatients(searchQuery, newPage, pageSize);
+  };
+
+  const handlePageSizeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const newSize = parseInt(e.target.value, 10) || 10;
+    setPageSize(newSize);
+    setPage(1);
+    loadPatients(searchQuery, 1, newSize);
+  };
+
+  const handleOpenRegisterModal = () => {
+    setEditingPatient(null);
+    setFormData(initialFormData);
+    setFormError(null);
+    setFormSuccess(null);
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditModal = (p: PatientDto) => {
+    setEditingPatient(p);
+    setFormData({
+      fullName: p.fullName,
+      guardianName: p.guardianName || '',
+      age: p.age != null ? String(p.age) : '',
+      gender: p.gender || 'MALE',
+      bloodGroup: p.bloodGroup || 'UNKNOWN',
+      phone: p.phone,
+      alternatePhone: p.alternatePhone || '',
+      address: p.address || '',
+      city: p.city || 'Metropolis',
+      nic: p.nic || '',
+      employeeId: p.employeeId || '',
+      panelClientId: p.panelClientId || '',
+      emergencyContactName: p.emergencyContactName || '',
+      emergencyContactPhone: p.emergencyContactPhone || '',
+      notes: p.notes || '',
+    });
+    setFormError(null);
+    setFormSuccess(null);
+    setIsModalOpen(true);
+  };
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
     setFormSuccess(null);
@@ -112,40 +182,44 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
         notes: formData.notes.trim() || undefined,
       };
 
-      const res = await invokeIpc<PatientDto>('patients:register', payload);
-      if (res.success && res.data) {
-        setFormSuccess(`Patient registered successfully! MRN: ${res.data.mrn}`);
-        setActivePatient(res.data);
-        setTimeout(() => {
-          setIsModalOpen(false);
-          setFormData({
-            fullName: '',
-            guardianName: '',
-            age: '',
-            gender: 'MALE',
-            bloodGroup: 'UNKNOWN',
-            phone: '',
-            alternatePhone: '',
-            address: '',
-            city: 'Metropolis',
-            nic: '',
-            employeeId: '',
-            panelClientId: '',
-            emergencyContactName: '',
-            emergencyContactPhone: '',
-            notes: '',
-          });
-          loadPatients();
-        }, 1200);
+      if (editingPatient) {
+        payload.id = editingPatient.id;
+        const res = await invokeIpc<PatientDto>('patients:update', payload);
+        if (res.success && res.data) {
+          setFormSuccess(`Patient profile updated successfully for MRN: ${res.data.mrn}`);
+          if (activePatient?.id === res.data.id) {
+            setActivePatient(res.data);
+          }
+          setTimeout(() => {
+            setIsModalOpen(false);
+            loadPatients(searchQuery, page, pageSize);
+          }, 1200);
+        } else {
+          setFormError(res.error || 'Failed to update patient.');
+        }
       } else {
-        setFormError(res.error || 'Failed to register patient.');
+        const res = await invokeIpc<PatientDto>('patients:register', payload);
+        if (res.success && res.data) {
+          setFormSuccess(`Patient registered successfully! MRN: ${res.data.mrn}`);
+          setActivePatient(res.data);
+          setTimeout(() => {
+            setIsModalOpen(false);
+            setFormData(initialFormData);
+            loadPatients(searchQuery, 1, pageSize);
+          }, 1200);
+        } else {
+          setFormError(res.error || 'Failed to register patient.');
+        }
       }
     } catch (err: any) {
-      setFormError(err.message || 'Registration failed.');
+      setFormError(err.message || 'Operation failed.');
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  const startRecordIdx = totalCount === 0 ? 0 : (page - 1) * pageSize + 1;
+  const endRecordIdx = Math.min(totalCount, page * pageSize);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -174,7 +248,7 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
           </button>
         </form>
 
-        <button onClick={() => setIsModalOpen(true)} className="btn btn-primary">
+        <button onClick={handleOpenRegisterModal} className="btn btn-primary">
           <UserPlus size={16} />
           <span>New Patient Registration</span>
         </button>
@@ -182,11 +256,26 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
 
       {/* Patient List Table */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
           <h3 style={{ fontSize: '1.1rem' }}>Registered Patients Directory</h3>
-          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-            Showing {patients.length} records
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            <span>
+              Showing {startRecordIdx}-{endRecordIdx} of {totalCount} records
+            </span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span>Per page:</span>
+              <select
+                className="select"
+                value={pageSize}
+                onChange={handlePageSizeChange}
+                style={{ padding: '0.2rem 0.5rem', fontSize: '0.8rem' }}
+              >
+                <option value={10}>10</option>
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
         </div>
 
         <div className="table-container">
@@ -244,6 +333,14 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
                             <span>{isActive ? 'Active' : 'Select'}</span>
                           </button>
                           <button
+                            onClick={() => handleOpenEditModal(p)}
+                            className="btn btn-secondary btn-sm"
+                            title="Edit Patient Demographics"
+                          >
+                            <Edit2 size={14} />
+                            <span>Edit</span>
+                          </button>
+                          <button
                             onClick={() => onOpenProfile(p.id)}
                             className="btn btn-secondary btn-sm"
                             title="View Complete Medical Profile & History"
@@ -266,11 +363,100 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginTop: '1.25rem',
+            paddingTop: '0.75rem',
+            borderTop: '1px solid var(--border-subtle)',
+            flexWrap: 'wrap',
+            gap: '0.5rem',
+          }}>
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({totalCount} total patients)
+            </div>
+
+            <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(1)}
+                disabled={page === 1}
+                title="First Page"
+              >
+                <ChevronsLeft size={14} />
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page === 1}
+                title="Previous Page"
+              >
+                <ChevronLeft size={14} />
+                <span>Prev</span>
+              </button>
+
+              <div style={{ display: 'flex', gap: '0.2rem', margin: '0 0.3rem' }}>
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 2)
+                  .reduce<(number | string)[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
+                      acc.push('...');
+                    }
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((item, index) =>
+                    typeof item === 'number' ? (
+                      <button
+                        key={item}
+                        className={`btn btn-sm ${item === page ? 'btn-primary' : 'btn-secondary'}`}
+                        onClick={() => handlePageChange(item)}
+                        style={{ minWidth: '32px', padding: '0.2rem 0.5rem' }}
+                      >
+                        {item}
+                      </button>
+                    ) : (
+                      <span key={`dots-${index}`} style={{ padding: '0.2rem 0.4rem', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                        ...
+                      </span>
+                    )
+                  )}
+              </div>
+
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page === totalPages}
+                title="Next Page"
+              >
+                <span>Next</span>
+                <ChevronRight size={14} />
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => handlePageChange(totalPages)}
+                disabled={page === totalPages}
+                title="Last Page"
+              >
+                <ChevronsRight size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* New Patient Registration Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="New Permanent Patient Registration" maxWidth="700px">
-        <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* Patient Registration / Edit Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingPatient ? `Edit Patient Demographics (${editingPatient.mrn})` : "New Permanent Patient Registration"}
+        maxWidth="700px"
+      >
+        <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {formError && (
             <div style={{ background: 'rgba(244, 63, 94, 0.15)', border: '1px solid var(--accent-rose)', color: '#fda4af', padding: '0.6rem', borderRadius: 'var(--radius-sm)', fontSize: '0.85rem', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <AlertCircle size={16} />
@@ -452,8 +638,8 @@ export const PatientListPage: React.FC<PatientListPageProps> = ({
               Cancel
             </button>
             <button type="submit" disabled={isSubmitting} className="btn btn-primary">
-              <UserPlus size={16} />
-              <span>{isSubmitting ? 'Registering...' : 'Register & Assign MRN'}</span>
+              {editingPatient ? <Edit2 size={16} /> : <UserPlus size={16} />}
+              <span>{isSubmitting ? (editingPatient ? 'Updating...' : 'Registering...') : (editingPatient ? 'Save Demographics Changes' : 'Register & Assign MRN')}</span>
             </button>
           </div>
         </form>

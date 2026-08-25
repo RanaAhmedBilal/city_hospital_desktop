@@ -91,7 +91,7 @@ export function registerIpcHandlers() {
   }, { permission: 'patient:create', schema: schemas.CreatePatientSchema });
 
   handle('patients:search', async (payload) => {
-    return await PatientService.searchPatients(payload?.query || '', payload?.limit);
+    return await PatientService.searchPatients(payload?.query || '', payload?.page, payload?.limit);
   }, { permission: 'patient:read' });
 
   handle('patients:get-by-id', async (payload) => {
@@ -100,7 +100,7 @@ export function registerIpcHandlers() {
 
   handle('patients:update', async (payload, user) => {
     return await PatientService.updatePatient(payload.id, payload, user.id);
-  }, { permission: 'patient:update_demographics' });
+  }, { permission: 'patient:update_demographics', schema: schemas.UpdatePatientSchema });
 
   handle('patients:get-allergies', async (payload) => {
     return await PatientService.getPatientAllergies(payload.patientId);
