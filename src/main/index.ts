@@ -41,6 +41,7 @@ async function createWindow() {
     height: 850,
     minWidth: 1024,
     minHeight: 700,
+    show: false,
     title: 'City Hospital Management System',
     backgroundColor: '#0f172a',
     webPreferences: {
@@ -49,6 +50,16 @@ async function createWindow() {
       nodeIntegration: false,
       sandbox: false,
     },
+  });
+
+  // Auto-adjust application window size to full screen display dimensions
+  mainWindow.maximize();
+
+  mainWindow.once('ready-to-show', () => {
+    if (mainWindow) {
+      mainWindow.show();
+      mainWindow.focus();
+    }
   });
 
   // Register all typed IPC routes

@@ -2,17 +2,14 @@ import { Decimal } from 'decimal.js';
 import { prisma } from '../database/prisma';
 import { DailyCollectionSummary, ReportFilterDto } from '../../shared/types';
 import { InvoiceStatus, PaymentMethod } from '../../shared/constants/enums';
+import { parseLocalDateRange } from '../../shared/utils/dateUtils';
 
 export class ReportService {
   /**
    * Daily collection summary by payment method and cashier
    */
   static async getDailyCollection(dateStr?: string): Promise<DailyCollectionSummary> {
-    const targetDate = dateStr ? new Date(dateStr) : new Date();
-    const startOfDay = new Date(targetDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(targetDate);
-    endOfDay.setHours(23, 59, 59, 999);
+    const { start: startOfDay, end: endOfDay } = parseLocalDateRange(dateStr);
 
     const [invoices, payments] = await Promise.all([
       prisma.invoice.findMany({

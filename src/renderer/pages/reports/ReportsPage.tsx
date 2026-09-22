@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { invokeIpc } from '../../lib/ipc';
 import { DailyCollectionSummary } from '../../../shared/types';
 import { AnalyticsGraphsView } from './AnalyticsGraphsView';
+import { getTodayDateString } from '../../../shared/utils/dateUtils';
 import {
   BarChart3,
   Calendar,
@@ -18,8 +19,8 @@ import {
 export const ReportsPage: React.FC = () => {
   const [activeReportTab, setActiveReportTab] = useState<'analytics' | 'collection' | 'doctors' | 'departments' | 'panels' | 'investigations'>('analytics');
   const [dateRange, setDateRange] = useState({
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0],
+    startDate: getTodayDateString(),
+    endDate: getTodayDateString(),
   });
 
   const [dailyCollection, setDailyCollection] = useState<DailyCollectionSummary | null>(null);

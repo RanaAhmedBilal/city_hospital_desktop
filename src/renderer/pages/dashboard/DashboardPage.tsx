@@ -3,6 +3,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { useActivePatientStore } from '../../stores/activePatientStore';
 import { invokeIpc } from '../../lib/ipc';
 import { VisitDto, DailyCollectionSummary, DoctorDto, DepartmentDto } from '../../../shared/types';
+import { getTodayDateString } from '../../../shared/utils/dateUtils';
 import {
   Users,
   Activity,
@@ -51,7 +52,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ onNavigate }) => {
   const loadDashboardData = async () => {
     setLoading(true);
     try {
-      const today = new Date().toISOString().split('T')[0];
+      const today = getTodayDateString();
       const promises: Promise<any>[] = [];
 
       if (hasPermission('visit:read') || hasPermission('*')) {

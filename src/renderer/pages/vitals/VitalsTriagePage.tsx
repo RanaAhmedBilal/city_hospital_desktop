@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useActivePatientStore } from '../../stores/activePatientStore';
 import { invokeIpc } from '../../lib/ipc';
 import { VisitVitalsDto, VisitDto } from '../../../shared/types';
+import { getTodayDateString } from '../../../shared/utils/dateUtils';
 import { Modal } from '../../components/common/Modal';
 import {
   Activity,
@@ -106,7 +107,7 @@ export const VitalsTriagePage: React.FC<VitalsTriagePageProps> = ({
     setLoadingQueue(true);
     try {
       const res = await invokeIpc<VisitDto[]>('visits:get-all', {
-        date: new Date().toISOString().split('T')[0],
+        date: getTodayDateString(),
       });
       if (res.success && res.data) {
         setQueueVisits(res.data);
@@ -334,7 +335,7 @@ export const VitalsTriagePage: React.FC<VitalsTriagePageProps> = ({
   const paginatedQueue = sortedQueue.slice((currentPage - 1) * pageSize, currentPage * pageSize);
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 340px) minmax(0, 1fr)', gap: '1.25rem', alignItems: 'start' }}>
+    <div className="vitals-workstation-grid" style={{ alignItems: 'start' }}>
       {/* ---------------------------------------------------- */}
       {/* LEFT PANEL: OPD PATIENT QUEUE DESK */}
       {/* ---------------------------------------------------- */}

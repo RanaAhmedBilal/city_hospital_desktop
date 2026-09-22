@@ -404,6 +404,16 @@ h1, h2, h3, h4, h5, h6 {
   min-width: 0;
 }
 
+.vitals-workstation-grid {
+  display: grid;
+  grid-template-columns: 360px minmax(0, 1fr);
+  gap: 1.25rem;
+}
+
+.vitals-workstation-grid > * {
+  min-width: 0;
+}
+
 .scrollable-tabs-row {
   display: flex;
   gap: 0.5rem;
@@ -418,10 +428,40 @@ h1, h2, h3, h4, h5, h6 {
   height: 4px;
 }
 
+/* Container fluid wrapper for smooth screen scaling */
+.container-fluid {
+  width: 100%;
+  max-width: 1920px;
+  margin: 0 auto;
+}
+
+/* High Resolution & Ultra-Wide Monitor Scaling (> 1600px) */
+@media (min-width: 1600px) {
+  .responsive-grid-4 {
+    gap: 1.25rem;
+  }
+  .lab-workstation-grid,
+  .billing-workstation-grid {
+    grid-template-columns: minmax(0, 1fr) 420px;
+  }
+  .vitals-workstation-grid {
+    grid-template-columns: 400px minmax(0, 1fr);
+  }
+}
+
 /* Screen Size Media Queries */
+@media (max-width: 1400px) {
+  .responsive-grid-4 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 @media (max-width: 1200px) {
   .responsive-grid-4 {
     grid-template-columns: repeat(2, 1fr);
+  }
+  .vitals-workstation-grid {
+    grid-template-columns: 320px minmax(0, 1fr);
   }
 }
 
@@ -430,7 +470,8 @@ h1, h2, h3, h4, h5, h6 {
     grid-template-columns: repeat(2, 1fr);
   }
   .lab-workstation-grid,
-  .billing-workstation-grid {
+  .billing-workstation-grid,
+  .vitals-workstation-grid {
     grid-template-columns: 1fr !important;
   }
   .app-main-content {
@@ -480,3 +521,4 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 0.8rem;
   }
 }
+

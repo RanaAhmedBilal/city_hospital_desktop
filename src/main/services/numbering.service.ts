@@ -1,4 +1,5 @@
 import { prisma, type Prisma } from '../database/prisma';
+import { getTodayDateString, parseLocalDateRange } from '../../shared/utils/dateUtils';
 
 export type SequenceType = 'MRN' | 'VISIT' | 'INVOICE' | 'PRESCRIPTION' | 'RECEIPT' | 'ADJUSTMENT';
 
@@ -85,7 +86,7 @@ export class NumberingService {
    * Generates an atomic, concurrency-safe daily token number for a specific doctor
    */
   static async getNextTokenNumber(doctorId: string, customTx: Prisma.TransactionClient): Promise<number> {
-    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStr = getTodayDateString();
     const name = `TOKEN_${doctorId}_${todayStr}`;
     const defaultPrefix = `TKN-${todayStr}-`;
 
@@ -94,11 +95,7 @@ export class NumberingService {
     });
 
     if (!counter) {
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
+      const { start: startOfDay, end: endOfDay } = parseLocalDateRange(todayStr);
 
       const initialCount = await customTx.visit.count({
         where: {

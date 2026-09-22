@@ -4,6 +4,7 @@ import { NumberingService } from './numbering.service';
 import { AuditService } from './audit.service';
 import { VisitDto } from '../../shared/types';
 import { VisitStatus, VisitPaymentStatus, VisitType, ChargeStatus } from '../../shared/constants/enums';
+import { parseLocalDateRange } from '../../shared/utils/dateUtils';
 
 export class VisitService {
   /**
@@ -130,10 +131,7 @@ export class VisitService {
     const where: any = {};
 
     if (filters.date) {
-      const start = new Date(filters.date);
-      start.setHours(0, 0, 0, 0);
-      const end = new Date(filters.date);
-      end.setHours(23, 59, 59, 999);
+      const { start, end } = parseLocalDateRange(filters.date);
       where.visitDateTime = { gte: start, lte: end };
     }
 

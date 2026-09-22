@@ -3,6 +3,7 @@ import { useActivePatientStore } from '../../stores/activePatientStore';
 import { invokeIpc } from '../../lib/ipc';
 import { VisitDto, DoctorDto, DepartmentDto, PatientDto } from '../../../shared/types';
 import { VisitStatus, VisitType } from '../../../shared/constants/enums';
+import { getTodayDateString } from '../../../shared/utils/dateUtils';
 import { Modal } from '../../components/common/Modal';
 import {
   CalendarClock,
@@ -46,7 +47,7 @@ export const VisitQueuePage: React.FC<VisitQueuePageProps> = ({
 
   // Filter States
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedDate, setSelectedDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDateString());
   const [selectedDeptId, setSelectedDeptId] = useState<string>('');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [selectedStatus, setSelectedStatus] = useState<string>('');
@@ -209,7 +210,7 @@ export const VisitQueuePage: React.FC<VisitQueuePageProps> = ({
 
   const resetAllFilters = () => {
     setSearchQuery('');
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(getTodayDateString());
     setSelectedDeptId('');
     setSelectedDoctorId('');
     setSelectedStatus('');
