@@ -340,7 +340,7 @@ export const VitalsTriagePage: React.FC<VitalsTriagePageProps> = ({
       {/* LEFT PANEL: OPD PATIENT QUEUE DESK */}
       {/* ---------------------------------------------------- */}
       <div className="card" style={{ padding: '1rem', display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="card-header-flex">
           <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
             <Users size={18} color="var(--primary-400)" />
             <span>OPD Queue Desk</span>
@@ -859,7 +859,7 @@ export const VitalsTriagePage: React.FC<VitalsTriagePageProps> = ({
 
             {/* Historical Vitals Table */}
             <div className="card" style={{ padding: '1.25rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+              <div className="card-header-flex" style={{ marginBottom: '0.75rem' }}>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <Clock size={18} color="var(--primary-400)" />
                   <span>Historical Vitals Log for {patient.fullName}</span>

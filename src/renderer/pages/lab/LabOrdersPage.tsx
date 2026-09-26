@@ -37,6 +37,7 @@ import {
   X,
   Edit,
   Save,
+  FolderPlus,
 } from 'lucide-react';
 
 interface LabCatalogItem {
@@ -360,6 +361,60 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
   const [payRef, setPayRef] = useState('');
   const [paying, setPaying] = useState(false);
 
+  // Category Management State
+  const [customCategories, setCustomCategories] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('hospital_custom_lab_categories');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
+  const allAvailableCategories = Array.from(
+    new Set([
+      'Biochemistry',
+      'Hematology',
+      'Serology',
+      'Clinical Pathology',
+      'Radiology',
+      'Cardiology',
+      'Endocrinology',
+      'Microbiology',
+      'Histopathology',
+      'Ultrasound',
+      'Immunology',
+      'Toxicology',
+      ...catalog.map((c) => c?.category).filter(Boolean),
+      ...customCategories,
+    ])
+  ).sort();
+
+  const handleSaveCategory = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) return;
+
+    if (!customCategories.includes(trimmed)) {
+      const updated = [...customCategories, trimmed];
+      setCustomCategories(updated);
+      try {
+        localStorage.setItem('hospital_custom_lab_categories', JSON.stringify(updated));
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    setCustomTest((prev) => ({ ...prev, category: trimmed }));
+    setTestFormState((prev) => ({ ...prev, category: trimmed }));
+    setSelectedCategory(trimmed);
+    setNewCategoryInput('');
+    setIsCategoryModalOpen(false);
+  };
+
   useEffect(() => {
     loadCatalog();
   }, []);
@@ -449,7 +504,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
     setSelectedTests(newTests);
   };
 
-  const categories = ['ALL', ...Array.from(new Set(catalog.map((c) => c?.category).filter(Boolean)))];
+  const categories = ['ALL', ...allAvailableCategories];
 
   const filteredCatalog = catalog.filter((item) => {
     if (!item) return false;
@@ -810,7 +865,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                       <User size={22} color="var(--primary-400)" />
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <h3 style={{ fontSize: '1.1rem', fontWeight: 800 }}>{patient?.fullName || 'Patient'}</h3>
                         <span className="badge badge-primary">{patient?.mrn || '—'}</span>
                         <span className="badge badge-emerald">Token #{visit?.tokenNumber || 1}</span>
@@ -937,12 +992,12 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                     </button>
 
                     <button
-                      onClick={() => setIsPayModalOpen(true)}
+                      onClick={onNavigateToBilling}
                       className="btn btn-primary btn-sm"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                     >
                       <DollarSign size={15} />
-                      <span>Pay Lab Bill Now</span>
+                      <span>Go to Billing Counter for Payment</span>
                     </button>
                   </div>
                 </div>
@@ -952,9 +1007,9 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
               <div className="lab-workstation-grid">
                 {/* Left: Test Catalog & Search */}
                 <div className="card">
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                  <div className="card-header-flex" style={{ marginBottom: '1rem' }}>
                     <div>
-                      <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <h3 style={{ fontSize: '1.05rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <FlaskConical size={18} color="var(--primary-400)" />
                         <span>Prescribed Lab Tests Catalog</span>
                       </h3>
@@ -963,7 +1018,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                       </p>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <div className="btn-group-responsive">
                       <button
                         type="button"
                         onClick={() => setIsCatalogManagerOpen(true)}
@@ -1002,7 +1057,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                   </div>
 
                   {/* Category Chips */}
-                  <div style={{ display: 'flex', gap: '0.35rem', overflowX: 'auto', paddingBottom: '0.5rem', marginBottom: '0.75rem' }}>
+                  <div className="chips-row" style={{ marginBottom: '0.75rem' }}>
                     {categories.map((cat) => (
                       <button
                         key={cat}
@@ -1019,6 +1074,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                           color: selectedCategory === cat ? 'var(--primary-400)' : 'var(--text-secondary)',
                           cursor: 'pointer',
                           whiteSpace: 'nowrap',
+                          flexShrink: 0,
                         }}
                       >
                         {cat}
@@ -1081,8 +1137,8 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                 {/* Right: Order Summary & Billing Card */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div className="card">
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.85rem' }}>
-                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div className="card-header-flex" style={{ marginBottom: '0.85rem' }}>
+                      <h3 style={{ fontSize: '1.05rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
                         <Tag size={18} color="var(--primary-400)" />
                         <span>Order Summary & Lab Billing</span>
                       </h3>
@@ -1828,20 +1884,24 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
-              <label className="form-label">Category</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Category</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  style={{ fontSize: '0.72rem', color: 'var(--primary-400)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  + Add Category
+                </button>
+              </div>
               <select
                 className="select"
                 value={customTest.category}
                 onChange={(e) => setCustomTest({ ...customTest, category: e.target.value })}
               >
-                <option value="Biochemistry">Biochemistry</option>
-                <option value="Hematology">Hematology</option>
-                <option value="Serology">Serology</option>
-                <option value="Clinical Pathology">Clinical Pathology</option>
-                <option value="Radiology">Radiology</option>
-                <option value="Cardiology">Cardiology</option>
-                <option value="Ultrasound">Ultrasound</option>
-                <option value="Other">Other Diagnostic</option>
+                {allAvailableCategories.map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
             </div>
 
@@ -2019,13 +2079,13 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {/* Header Bar & Actions */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', background: 'var(--bg-surface-elevated)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '240px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '280px' }}>
               <div style={{ position: 'relative', flex: 1 }}>
-                <Search size={14} color="var(--text-muted)" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
+                <Search size={15} color="var(--text-muted)" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
                 <input
                   type="text"
                   className="input"
-                  style={{ paddingLeft: '2.2rem', fontSize: '0.85rem' }}
+                  style={{ paddingLeft: '2.2rem', fontSize: '0.85rem', height: '38px' }}
                   placeholder="Search catalog by code, name, category..."
                   value={managerSearchQuery}
                   onChange={(e) => setManagerSearchQuery(e.target.value)}
@@ -2034,7 +2094,7 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
 
               <select
                 className="select"
-                style={{ width: '180px', fontSize: '0.82rem' }}
+                style={{ width: '180px', fontSize: '0.85rem', height: '38px' }}
                 value={managerCategoryFilter}
                 onChange={(e) => setManagerCategoryFilter(e.target.value)}
               >
@@ -2044,15 +2104,44 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
               </select>
             </div>
 
-            <button
-              type="button"
-              onClick={handleOpenAddTestModal}
-              className="btn btn-primary btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-            >
-              <Plus size={14} />
-              <span>Add New Diagnostic Test</span>
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(true)}
+                className="btn btn-secondary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  height: '38px',
+                  fontSize: '0.85rem',
+                  padding: '0 0.95rem',
+                  borderColor: 'rgba(20, 184, 166, 0.4)',
+                  backgroundColor: 'rgba(20, 184, 166, 0.12)',
+                  color: 'var(--primary-400)',
+                }}
+              >
+                <FolderPlus size={16} color="var(--primary-400)" />
+                <span>+ Add Category</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleOpenAddTestModal}
+                className="btn btn-primary"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.45rem',
+                  height: '38px',
+                  fontSize: '0.85rem',
+                  padding: '0 0.95rem',
+                }}
+              >
+                <Plus size={16} />
+                <span>+ Add New Diagnostic Test</span>
+              </button>
+            </div>
           </div>
 
           {/* Catalog Data Table */}
@@ -2177,7 +2266,16 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             <div>
-              <label className="form-label">Category</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <label className="form-label" style={{ marginBottom: 0 }}>Category</label>
+                <button
+                  type="button"
+                  onClick={() => setIsCategoryModalOpen(true)}
+                  style={{ fontSize: '0.72rem', color: 'var(--primary-400)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700 }}
+                >
+                  + Add Category
+                </button>
+              </div>
               <input
                 type="text"
                 className="input"
@@ -2187,15 +2285,9 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
                 placeholder="e.g. Biochemistry"
               />
               <datalist id="category-suggestions">
-                <option value="Hematology" />
-                <option value="Biochemistry" />
-                <option value="Serology" />
-                <option value="Endocrinology" />
-                <option value="Clinical Pathology" />
-                <option value="Microbiology" />
-                <option value="Radiology" />
-                <option value="Cardiology" />
-                <option value="Ultrasound" />
+                {allAvailableCategories.map((cat) => (
+                  <option key={cat} value={cat} />
+                ))}
               </datalist>
             </div>
 
@@ -2263,6 +2355,58 @@ export const LabOrdersPage: React.FC<LabOrdersPageProps> = ({
             >
               <Save size={14} />
               <span>{savingCatalogItem ? 'Saving...' : editingCatalogItem ? 'Update Test' : 'Save New Test'}</span>
+            </button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* ADD NEW DIAGNOSTIC CATEGORY FORM MODAL */}
+      <Modal
+        isOpen={isCategoryModalOpen}
+        onClose={() => setIsCategoryModalOpen(false)}
+        title="Add New Diagnostic Test Category"
+        maxWidth="500px"
+      >
+        <form onSubmit={handleSaveCategory} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div>
+            <label className="form-label">New Category Name *</label>
+            <input
+              type="text"
+              className="input"
+              required
+              autoFocus
+              value={newCategoryInput}
+              onChange={(e) => setNewCategoryInput(e.target.value)}
+              placeholder="e.g. Endocrinology, Molecular Biology, Histopathology..."
+            />
+          </div>
+
+          <div>
+            <label className="form-label">Available Categories ({allAvailableCategories.length})</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', maxHeight: '140px', overflowY: 'auto', padding: '0.65rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              {allAvailableCategories.map((cat) => (
+                <span key={cat} className="badge badge-emerald" style={{ fontSize: '0.74rem' }}>
+                  {cat}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+            <button
+              type="button"
+              onClick={() => setIsCategoryModalOpen(false)}
+              className="btn btn-secondary btn-sm"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              className="btn btn-primary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            >
+              <Plus size={14} />
+              <span>Save & Register Category</span>
             </button>
           </div>
         </form>
